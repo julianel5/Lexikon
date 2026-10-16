@@ -12,7 +12,8 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { autocomplete, getEntry, stats, suggest } from "./db.js";
+import { autocomplete, getEntry, stats, suggest, textLookup } from "./db.js";
+import { analyzeText, MAX_TEXT_LENGTH } from "./parse.js";
 import { foldQuery } from "./fold.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -34,7 +35,8 @@ app.use(
       configuredOrigins.includes("*") || configuredOrigins.includes(origin)
         ? origin
         : configuredOrigins[0]!,
-    allowMethods: ["GET", "OPTIONS"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: ["Content-Type"],
     maxAge: 86400,
   }),
 );
@@ -46,6 +48,7 @@ app.get("/", (c) =>
       "/api/health",
       "/api/suggest?q=",
       "/api/autocomplete?q=",
+      "POST /api/parse",
       "/api/entry/:id",
     ],
   }),
@@ -81,6 +84,24 @@ app.get("/api/autocomplete", (c) => {
   const limitParam = Number(c.req.query("limit") ?? 8);
   const limit = Number.isFinite(limitParam) ? limitParam : 8;
   return c.json({ query: q, suggestions: autocomplete(q, limit) });
+});
+
+// Cut a text into words and resolve each one to its dictionary entries (lemmas, compounds).
+app.post("/api/parse", async (c) => {
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "body must be JSON: { \"text\": string }" }, 400);
+  }
+  const text = (body as { text?: unknown } | null)?.text;
+  if (typeof text !== "string") {
+    return c.json({ error: "missing string field 'text'" }, 400);
+  }
+  if (text.length > MAX_TEXT_LENGTH) {
+    return c.json({ error: "text too long", maxLength: MAX_TEXT_LENGTH }, 413);
+  }
+  return c.json(analyzeText(text, textLookup));
 });
 
 app.get("/api/entry/:id", (c) => {

@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { queryEnglishWords } from "./english.js";
+import type { Lookup, RawCandidate } from "./parse.js";
 import { foldQuery, kindName } from "./fold.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -289,6 +290,66 @@ export function autocomplete(query: string, limit = 8): AutocompleteItem[] {
   }
   return out;
 }
+
+// ---- text analysis lookups (see parse.ts) ---------------------------------------------------
+
+// Every entry that has the key as its headword or as an inflected form ("ging" -> gehen).
+const WORD_CANDIDATES_SQL = `
+  SELECT
+    e.id                                            AS id,
+    e.word                                          AS word,
+    e.pos                                           AS pos,
+    json_extract(e.data, '$.article')               AS article,
+    json_extract(e.data, '$.senses[0].glosses[0]')  AS gloss,
+    MAX(k.exact_form)                               AS headword,
+    -- size of the senses only: the forms table would make every verb look "bigger"
+    length(json_extract(e.data, '$.senses'))        AS weight
+  FROM search_keys k
+  JOIN entries e ON e.id = k.entry_id
+  WHERE k.kind = @kind AND k.key = @key
+  GROUP BY e.id
+  LIMIT 25
+`;
+
+// Entries that can be part of a compound word: the key must be their headword.
+const HEADWORD_SQL = `
+  SELECT
+    e.id                                            AS id,
+    e.word                                          AS word,
+    e.pos                                           AS pos,
+    json_extract(e.data, '$.article')               AS article,
+    json_extract(e.data, '$.senses[0].glosses[0]')  AS gloss,
+    1                                               AS headword,
+    length(json_extract(e.data, '$.senses'))        AS weight
+  FROM search_keys k
+  JOIN entries e ON e.id = k.entry_id
+  WHERE k.kind = 0 AND k.key = @key AND k.exact_form = 1
+    AND e.pos IN ('noun', 'verb', 'adj', 'adv')
+  GROUP BY e.id
+  ORDER BY length(json_extract(e.data, '$.senses')) DESC
+  LIMIT 1
+`;
+
+const wordCandidatesStmt = db.prepare<[Record<string, unknown>], RawCandidate>(WORD_CANDIDATES_SQL);
+const headwordStmt = db.prepare<[Record<string, unknown>], RawCandidate>(HEADWORD_SQL);
+
+export const textLookup: Lookup = {
+  candidates(key) {
+    let rows = wordCandidatesStmt.all({ kind: 0, key });
+    if (rows.length === 0) {
+      // texts typed without umlauts: "Maedchen" -> Mädchen
+      const folded = foldQuery(key);
+      if (folded.translit !== key) rows = wordCandidatesStmt.all({ kind: 1, key: folded.translit });
+    }
+    return rows;
+  },
+  headword(key) {
+    const row = headwordStmt.get({ key });
+    return row
+      ? { id: row.id, word: row.word, pos: row.pos, article: row.article, gloss: row.gloss }
+      : null;
+  },
+};
 
 /** "sich verlieben" -> "verlieben"; null when there is no reflexive prefix. */
 const REFLEXIVE_RE = /^sich\s+(.+)$/i;
