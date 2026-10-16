@@ -5,11 +5,9 @@ interface HeaderProps {
   onHome: () => void
   /** Go to the search box (keeping the current query) and focus it. */
   onSearch: () => void
-  /** Go to the "Analyze text" page. */
-  onText: () => void
 }
 
-export function Header({ onHome, onSearch, onText }: HeaderProps) {
+export function Header({ onHome, onSearch }: HeaderProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-slate-800/60 bg-slate-900">
       <div className="mx-auto flex h-16 w-full max-w-2xl items-center justify-between px-4">
@@ -47,26 +45,6 @@ export function Header({ onHome, onSearch, onText }: HeaderProps) {
             >
               <circle cx="11" cy="11" r="7" />
               <path d="m21 21-4.3-4.3" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={onText}
-            aria-label="Analyze text"
-            title="Analyze text"
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-slate-700/60 bg-slate-800/40 text-slate-300 transition-colors hover:border-violet-500/50 hover:text-violet-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5"
-            >
-              <path d="M4 6h16M4 12h16M4 18h10" />
             </svg>
           </button>
           <ThemeToggle />

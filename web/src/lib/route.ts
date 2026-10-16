@@ -4,7 +4,6 @@
  *   /                      search home
  *   /?q=ging               search for "ging"
  *   /entry/3004            entry page by id
- *   /text                  analyze a pasted text
  *   /entry/3004/Haus       entry page; the word is a safety net: if the id
  *                          now points at a different word (the DB was
  *                          regenerated) the app re-resolves it by word.
@@ -14,8 +13,6 @@ export interface Route {
   entryId: number | null
   slug: string | null
   q: string
-  /** the "Analyze text" page */
-  text: boolean
 }
 
 function safeDecode(value: string): string {
@@ -31,14 +28,11 @@ export function parseLocation(
 ): Route {
   const q = new URLSearchParams(loc.search).get('q') ?? ''
   const match = /^\/entry\/(\d+)(?:\/([^/]+))?\/?$/.exec(loc.pathname)
-  if (!match) {
-    return { entryId: null, slug: null, q, text: /^\/text\/?$/.test(loc.pathname) }
-  }
+  if (!match) return { entryId: null, slug: null, q }
   return {
     entryId: Number(match[1]),
     slug: match[2] ? safeDecode(match[2]) : null,
     q,
-    text: false,
   }
 }
 
@@ -46,9 +40,7 @@ export function buildPath(route: {
   entryId?: number | null
   slug?: string | null
   q?: string
-  text?: boolean
 }): string {
-  if (route.text && route.entryId == null) return '/text'
   if (route.entryId != null) {
     const slug = route.slug ? `/${encodeURIComponent(route.slug)}` : ''
     return `/entry/${route.entryId}${slug}`
