@@ -72,7 +72,7 @@ function Section({
   )
 }
 
-function EntryDetails({
+export function EntryDetails({
   entry,
   onSelectTerm,
 }: {
@@ -311,6 +311,22 @@ function EntryDetails({
       ))}
     </article>
   )
+}
+
+/** The entry card embedded in another page: no URL, title or navigation side effects. */
+export function EntryPreview({
+  id,
+  onSelectTerm,
+}: {
+  id: number
+  onSelectTerm: (term: string) => void
+}) {
+  const { entry, status, error } = useEntry(id)
+  if (status === 'loading') return <p className="text-sm text-slate-500">Loading…</p>
+  if (status === 'error') {
+    return <p className="text-sm text-rose-400">{error ?? 'Could not load this entry.'}</p>
+  }
+  return entry ? <EntryDetails entry={entry} onSelectTerm={onSelectTerm} /> : null
 }
 
 export function EntryView({
