@@ -1,0 +1,95 @@
+[
+  {
+    "input": "hot water",
+    "tokens": [
+      "hot",
+      "water"
+    ]
+  },
+  {
+    "input": "to go",
+    "tokens": [
+      "go"
+    ]
+  },
+  {
+    "input": "The House",
+    "tokens": [
+      "house"
+    ]
+  },
+  {
+    "input": "thank you",
+    "tokens": [
+      "thank",
+      "you"
+    ]
+  },
+  {
+    "input": "to be",
+    "tokens": [
+      "be"
+    ]
+  },
+  {
+    "input": "I",
+    "tokens": [
+      "i"
+    ]
+  },
+  {
+    "input": "don't know",
+    "tokens": [
+      "don't",
+      "know"
+    ]
+  },
+  {
+    "input": "don’t know",
+    "tokens": [
+      "don't",
+      "know"
+    ]
+  },
+  {
+    "input": "someone's turn",
+    "tokens": [
+      "turn"
+    ]
+  },
+  {
+    "input": "(of a person) tall",
+    "tokens": [
+      "tall"
+    ]
+  },
+  {
+    "input": "[figuratively] to give something to someone",
+    "tokens": [
+      "give"
+    ]
+  },
+  {
+    "input": "ice-cream, with a cone",
+    "tokens": [
+      "ice",
+      "cream",
+      "cone"
+    ]
+  },
+  {
+    "input": "to a the of in",
+    "tokens": []
+  },
+  {
+    "input": "x",
+    "tokens": []
+  },
+  {
+    "input": "  HOT   WATER  ",
+    "tokens": [
+      "hot",
+      "water"
+    ]
+  }
+]

@@ -187,14 +187,15 @@ SCORE_MENTION = 1
 MAX_ENGLISH_KEYS = 60
 
 
-def english_tokens(gloss: str) -> list[str]:
-    """Lower-cased content words of one gloss, without qualifiers, punctuation or stopwords."""
-    text = unicodedata.normalize("NFC", gloss).lower().replace("\u2019", "'")
-    text = _QUALIFIER_RE.sub(" ", text).strip()
-    if _META_GLOSS_RE.match(text):
-        return []
+def _clean_english(text: str) -> str:
+    """NFC, lower-cased, typographic apostrophes straightened, qualifiers removed."""
+    text = unicodedata.normalize("NFC", text).lower().replace("\u2019", "'")
+    return _QUALIFIER_RE.sub(" ", text).strip()
+
+
+def _english_words_of(clean: str) -> list[str]:
     out = []
-    for token in _ENGLISH_TOKEN_RE.findall(text):
+    for token in _ENGLISH_TOKEN_RE.findall(clean):
         token = token.removesuffix("'s")
         if token in ENGLISH_STOPWORDS or token.endswith("'"):
             continue
@@ -202,6 +203,24 @@ def english_tokens(gloss: str) -> list[str]:
             continue
         out.append(token)
     return out
+
+
+def english_words(text: str) -> list[str]:
+    """Lower-cased content words of a piece of English text.
+
+    The same function (ported to TypeScript as ``englishWords`` in ``server/src/english.ts``)
+    tokenises a multi-word search query at query time, so a query is cut exactly like the
+    glosses were; ``fixtures/english_cases.json`` checks both ports.
+    """
+    return _english_words_of(_clean_english(text))
+
+
+def english_tokens(gloss: str) -> list[str]:
+    """Content words of one gloss, or none if the gloss only describes the word itself."""
+    clean = _clean_english(gloss)
+    if _META_GLOSS_RE.match(clean):
+        return []
+    return _english_words_of(clean)
 
 
 def english_keys(senses: list[dict]) -> list[tuple[str, int]]:

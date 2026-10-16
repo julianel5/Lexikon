@@ -18,6 +18,9 @@ import ingest
 CASES = json.loads(
     (Path(__file__).parent / "fixtures" / "fold_cases.json").read_text(encoding="utf-8")
 )
+ENGLISH_CASES = json.loads(
+    (Path(__file__).parent / "fixtures" / "english_cases.json").read_text(encoding="utf-8")
+)
 
 
 class FoldTests(unittest.TestCase):
@@ -47,6 +50,12 @@ class FoldTests(unittest.TestCase):
 
 class EnglishKeyTests(unittest.TestCase):
     """Reverse (English -> German) search keys taken from the glosses."""
+
+    def test_english_words_match_the_shared_cases(self) -> None:
+        # server/src/english.ts must cut a search query exactly like the glosses were cut
+        for case in ENGLISH_CASES:
+            with self.subTest(input=case["input"]):
+                self.assertEqual(ingest.english_words(case["input"]), case["tokens"])
 
     def test_content_words_only(self) -> None:
         self.assertEqual(ingest.english_tokens("to go, to walk"), ["go", "walk"])
