@@ -2,13 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). The project is
-not versioned yet, so everything so far is listed under **Unreleased**.
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
+follows [Semantic Versioning](https://semver.org/) (while it is `0.x`, minor versions may change
+behaviour).
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-16
+
+First public version.
+
 ### Added
 
+- Word breakdown: entries of compound words show the parts they are made of (taken from
+  Wiktionary), each linking to its own entry.
+- Complete grammar tables on entry pages (declension of nouns, conjugation of verbs), behind a
+  "Show full grammar" button.
 - Sentences in the search box: type or paste German text and, on the same page, it is cut into
   words (known ones underlined) with the card of the selected word right below, like Jiten's text
   parsing. Every word is resolved to its dictionary form (*ging* → gehen, *Häusern* → Haus),
@@ -32,6 +41,8 @@ not versioned yet, so everything so far is listed under **Unreleased**.
 - Header with a link home and a light/dark theme switch (remembers the choice and follows the
   system preference), and a footer with the GitHub repository, Ko-fi and credits.
 - `Dockerfile`s for the server and the web app, used for the Railway deployment.
+- Project documentation: README, contributing guide, code of conduct, security policy, issue and
+  pull request templates, CI, Dependabot and `AGENTS.md` for coding agents.
 - Reflexive queries (`sich verlieben`) resolve to the verb's entry.
 - Keyboard navigation of the search results.
 
@@ -50,3 +61,6 @@ not versioned yet, so everything so far is listed under **Unreleased**.
 
 - Content clipped on narrow screens (the audio button and long related terms went off-screen at
   320 px) and tap targets that were too small.
+
+[Unreleased]: https://github.com/julianel5/Lexikon/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/julianel5/Lexikon/releases/tag/v0.1.0
