@@ -9,6 +9,7 @@
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import Database from "better-sqlite3";
+import { queryEnglishWords } from "./english.js";
 import { foldQuery, kindName } from "./fold.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -93,22 +94,101 @@ const SUGGEST_SQL = `
 `;
 
 const suggestStmt = db.prepare<[Record<string, unknown>], RawSuggestRow>(SUGGEST_SQL);
+
+// Reverse search for a query of several English words ("hot water"): the entries whose glosses
+// contain ALL of the words (the kind 3 keys are single words). An entry whose gloss contains the
+// whole phrase comes first; then the weakest word's score, then the usual documented-senses
+// tie-break. Needs no extra index: it reuses the keys the ingest already built.
+const MULTI_WORD_SQL = `
+  SELECT
+    e.id                                   AS id,
+    3                                      AS kind,
+    MIN(k.exact_form)                      AS exact_form,
+    e.word                                 AS word,
+    e.pos                                  AS pos,
+    e.gender                               AS gender,
+    json_extract(e.data, '$.article')      AS article,
+    json_extract(e.data, '$.plural')       AS plural,
+    json_extract(e.data, '$.senses[0].glosses[0]') AS g0,
+    json_extract(e.data, '$.senses[0].glosses[1]') AS g1,
+    json_extract(e.data, '$.senses[0].glosses[2]') AS g2,
+    EXISTS (
+      SELECT 1
+      FROM json_each(e.data, '$.senses') AS s, json_each(s.value, '$.glosses') AS g
+      WHERE instr(lower(g.value), @phrase) > 0
+    )                                      AS phrase
+  FROM search_keys k
+  JOIN entries e ON e.id = k.entry_id
+  WHERE k.kind = 3 AND k.key IN (SELECT value FROM json_each(@words))
+  GROUP BY e.id
+  HAVING COUNT(DISTINCT k.key) = @n
+  ORDER BY phrase DESC,
+           exact_form DESC,
+           -length(json_extract(e.data, '$.senses')) ASC,
+           e.word ASC
+  LIMIT @limit
+`;
+
+const multiWordStmt = db.prepare<[Record<string, unknown>], RawSuggestRow>(MULTI_WORD_SQL);
 const entryStmt = db.prepare<[number], { data: string }>(
   "SELECT data FROM entries WHERE id = ?",
 );
 const countStmt = db.prepare<[], { c: number }>("SELECT count(*) AS c FROM entries");
 const keysStmt = db.prepare<[], { c: number }>("SELECT count(*) AS c FROM search_keys");
 
+/** Key that no search key can have: used when the query has no single English word. */
+const NO_KEY = "\u0000";
+
 function runSuggest(query: string, limit: number): SuggestResult[] {
   const folded = foldQuery(query);
+  const max = Math.min(Math.max(limit, 1), 100);
+  const words = queryEnglishWords(query);
   const rows = suggestStmt.all({
     k0: folded.exact,
     k1: folded.translit,
     k2: folded.strip,
-    // English keys are plain lower-cased words, so the exact (NFC + lowercase) key is used
-    k3: folded.exact,
-    limit: Math.min(Math.max(limit, 1), 100),
+    // Exactly one English word ("house", or "to go" once "to" is dropped): the usual lookup.
+    // Several words are handled by the multi-word query below.
+    k3: words.length === 1 ? words[0]! : NO_KEY,
+    limit: max,
   });
+
+  if (words.length > 1 && rows.length < max) {
+    const seen = new Set(rows.map((r) => r.id));
+    const english = multiWordStmt.all({
+      words: JSON.stringify(words),
+      n: words.length,
+      phrase: query.trim().toLowerCase().replace(/\s+/g, " "),
+      limit: max,
+    });
+    // German matches (kinds 0-2) always come first; English ones fill the remaining slots
+    for (const row of english) {
+      if (rows.length >= max) break;
+      if (!seen.has(row.id)) {
+        seen.add(row.id);
+        rows.push(row);
+      }
+    }
+
+    // "dog house" / "book store" are one word in many glosses ("doghouse", "bookstore")
+    if (words.length <= 3 && rows.length < max) {
+      const compound = suggestStmt.all({
+        k0: NO_KEY,
+        k1: NO_KEY,
+        k2: NO_KEY,
+        k3: words.join(""),
+        limit: max,
+      });
+      for (const row of compound) {
+        if (rows.length >= max) break;
+        if (!seen.has(row.id)) {
+          seen.add(row.id);
+          rows.push(row);
+        }
+      }
+    }
+  }
+
   return rows.map((row) => {
     const glosses = [row.g0, row.g1, row.g2].filter(
       (g): g is string => typeof g === "string" && g.length > 0,
