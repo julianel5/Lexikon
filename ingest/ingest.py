@@ -402,14 +402,22 @@ def _relation_item(item):
 
 
 def _extract_components(entry: dict) -> list[str]:
-    """Extract compound constituents from etymology_templates (Kaikki)."""
+    """Extract compound constituents from etymology_templates (Kaikki).
+
+    German Wiktionary spells the same idea with several template names: the long
+    forms (``compound``/``affix``/``suffix``/``prefix``) and the short aliases
+    (``com``/``com+``/``af``/``suf``). All of them carry the constituents as
+    numeric ``args`` starting at 2; some wrap them in gloss markup like
+    ``Schraube<t:screw>``, which is stripped before use.
+    """
     components: list[str] = []
     seen: set[str] = set()
+    names = {"compound", "compounding", "com", "com+", "affix", "af", "suffix", "suf", "prefix"}
     for tmpl in entry.get("etymology_templates") or []:
         if not isinstance(tmpl, dict):
             continue
         name = str(tmpl.get("name") or "").lower()
-        if name not in ("compound", "affix", "suffix", "prefix", "compounding"):
+        if name not in names:
             continue
         args = tmpl.get("args") or {}
         if not isinstance(args, dict):
@@ -424,8 +432,8 @@ def _extract_components(entry: dict) -> list[str]:
             val = args.get(key)
             if not isinstance(val, str) or not val.strip():
                 continue
-            part = val.strip()
-            if part not in seen:
+            part = re.sub(r"<[^>]*>", "", val).strip()
+            if part and part not in seen:
                 seen.add(part)
                 components.append(part)
     if not components:
