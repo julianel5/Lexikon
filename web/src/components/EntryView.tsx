@@ -7,7 +7,6 @@ import { ArticleChips } from './ArticleChips'
 
 interface EntryViewProps {
   id: number
-  onBack: () => void
   onSelectTerm: (term: string) => void
   /** Called once the entry has been fetched (used to sync the URL). */
   onLoaded?: (entry: Entry) => void
@@ -307,7 +306,6 @@ function EntryDetails({
 
 export function EntryView({
   id,
-  onBack,
   onSelectTerm,
   onLoaded,
   onMissing,
@@ -328,17 +326,6 @@ export function EntryView({
 
   return (
     <section className="animate-fade-in-up">
-      <button
-        type="button"
-        onClick={onBack}
-        className="group mb-4 flex min-h-10 cursor-pointer items-center gap-2 text-sm text-slate-400 transition-colors hover:text-violet-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
-      >
-        <span className="inline-block transition-transform duration-300 group-hover:-translate-x-1">
-          ←
-        </span>
-        Back to search
-      </button>
-
       {status === 'loading' && <p className="text-sm text-slate-500">Loading…</p>}
 
       {status === 'error' && (

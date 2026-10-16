@@ -117,9 +117,6 @@ export default function App() {
       <Header onHome={() => showSearch('')} />
 
       <main className="relative mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:py-14">
-        <p className="mb-8 text-sm text-slate-400">
-          Fast, ad-free German to English lookup.
-        </p>
 
         {selectedId === null ? (
           <Search
@@ -136,7 +133,6 @@ export default function App() {
         ) : (
           <EntryView
             id={selectedId}
-            onBack={() => showSearch(search.query)}
             onSelectTerm={showSearch}
             onLoaded={handleLoaded}
             onMissing={handleMissing}
