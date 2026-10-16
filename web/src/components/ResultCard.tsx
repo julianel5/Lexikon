@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { SuggestResult } from '../lib/api'
 import { ArticleChips } from './ArticleChips'
+import { PILL, PosPill } from './Pills'
 
 /** `kind` the API reports for a reverse (English -> German) match. */
 const ENGLISH_MATCH_KIND = 3
@@ -34,12 +35,9 @@ export function ResultCard({
         onClick={() => onSelect(result.id)}
         aria-label={`Open full entry for ${result.word}`}
         aria-current={isKeyboardSelected ? 'true' : undefined}
-        className={`group relative flex w-full cursor-pointer flex-col gap-3 overflow-hidden rounded-2xl border p-5 text-left transition-all duration-300 hover:border-slate-700/60 hover:bg-slate-800/40 active:scale-[0.99] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500 ${
-          isKeyboardSelected
-            ? 'border-slate-700/60 bg-slate-800/40'
-            : viaEnglish
-              ? 'border-slate-700/50 bg-slate-900/40'
-              : 'border-slate-800/40 bg-slate-900/40'
+        // same card as the entry page: card colours, thin border, 6px radius, 16px padding
+        className={`group relative flex w-full cursor-pointer flex-col gap-2 overflow-hidden rounded-card border bg-card p-4 text-left transition-colors hover:border-card-edge-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500 ${
+          isKeyboardSelected ? 'border-card-edge-strong' : 'border-card-edge'
         }`}
       >
         {/* left accent */}
@@ -50,34 +48,32 @@ export function ResultCard({
           }`}
         />
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
           <span
-            className={`text-lg font-bold transition-colors group-hover:text-violet-400 ${
+            className={`text-lg font-semibold transition-colors group-hover:text-violet-400 ${
               isKeyboardSelected ? 'text-violet-400' : 'text-slate-100'
             }`}
           >
             {result.word}
           </span>
           <ArticleChips article={result.article} />
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-            {result.pos}
-          </span>
+          <PosPill pos={result.pos} />
           {viaEnglish && (
             <span
               title="Found through its English translation"
               aria-label="Matched an English translation"
-              className="rounded border border-slate-700 px-1.5 py-px text-[10px] font-bold uppercase tracking-widest text-slate-500"
+              className={`${PILL} bg-slate-700/40 text-slate-200`}
             >
               ENG
             </span>
           )}
           {result.plural && (
-            <span className="text-xs text-slate-500">pl. {result.plural}</span>
+            <span className="text-xs text-slate-400">pl. {result.plural}</span>
           )}
         </div>
 
         {result.snippet && (
-          <p className="text-sm leading-relaxed text-slate-400">
+          <p className="text-sm leading-relaxed text-slate-300">
             {result.snippet}
           </p>
         )}
