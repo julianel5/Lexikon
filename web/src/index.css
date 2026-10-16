@@ -5,10 +5,11 @@
   /* Flat UI: solid canvas and square-ish corners everywhere. */
   --color-canvas-from: #0b1020;
 
-  /* Entry card: one neutral panel with a thin border, like Jiten's vocabulary cards */
-  --color-card: #171717;
-  --color-card-edge: #2d2d2d;
-  --color-card-edge-strong: #404040;
+  /* Entry card: one panel with a thin border (Jiten-style) in the page's own slate palette:
+     the same tones as the search box and the result cards (slate-900 / 800 / 700) */
+  --color-card: #0f172a;
+  --color-card-edge: #1e293b;
+  --color-card-edge-strong: #334155;
   --radius-card: 6px;
 
   --radius-xs: 2px;

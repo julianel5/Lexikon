@@ -31,7 +31,7 @@ not versioned yet, so everything so far is listed under **Unreleased**.
 
 ### Changed
 
-- Entry pages are one Jiten-style card: neutral panel with a thin border, titled sections
+- Entry pages are one Jiten-style card: a panel in the page's slate palette with a thin border, titled sections
   (Forms, Meanings, relations), pills for part of speech, articles and sense tags.
 - The header has a search (magnifier) button that returns to the search box and focuses it.
 - Removed the "Back to search" button (the browser's back button still works) and the tagline.
