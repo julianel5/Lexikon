@@ -111,10 +111,18 @@ export default function App() {
     if (slug) resolveBySlug(slug)
   }, [resolveBySlug])
 
+  // The magnifier in the header: back to the search page (keeping the query) and focus the box.
+  const goToSearch = () => {
+    if (selectedId !== null) showSearch(search.query)
+    window.requestAnimationFrame(() =>
+      document.getElementById('search-input')?.focus(),
+    )
+  }
+
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-canvas-from font-sans text-slate-100 antialiased selection:bg-violet-500/30 selection:text-violet-200">
 
-      <Header onHome={() => showSearch('')} />
+      <Header onHome={() => showSearch('')} onSearch={goToSearch} />
 
       <main className="relative mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:py-14">
 

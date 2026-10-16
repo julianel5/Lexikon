@@ -62,6 +62,7 @@ export function SearchBar({
         </svg>
 
         <input
+          id="search-input"
           autoFocus
           type="text"
           role="combobox"
