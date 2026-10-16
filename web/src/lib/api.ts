@@ -136,6 +136,60 @@ export async function fetchAutocomplete(
   return data.suggestions
 }
 
+/** A dictionary entry a word of a text can be (its lemma). */
+export interface TextCandidate {
+  id: number
+  word: string
+  pos: string
+  article: string | null
+  gloss: string | null
+  /** The word is an inflected form of this entry ("ging" -> gehen). */
+  viaForm: boolean
+}
+
+/** One piece of a compound word ("Wasserflasche" -> Wasser, Flasche). */
+export interface TextPart {
+  text: string
+  id: number
+  word: string
+  pos: string
+  article: string | null
+  gloss: string | null
+}
+
+export interface TextToken {
+  text: string
+  start: number
+  end: number
+  word: boolean
+  candidates?: TextCandidate[]
+  compound?: TextPart[]
+}
+
+export interface TextAnalysis {
+  tokens: TextToken[]
+  stats: { words: number; unique: number; unknown: number }
+}
+
+/** Longest text the API analyzes (same limit as the server). */
+export const MAX_TEXT_LENGTH = 5000
+
+export async function analyzeText(
+  text: string,
+  signal: AbortSignal,
+): Promise<TextAnalysis> {
+  const res = await fetch(`${API_BASE}/api/parse`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+    signal,
+  })
+  if (!res.ok) {
+    throw new ApiError(res.status, `parse request failed (${res.status})`)
+  }
+  return (await res.json()) as TextAnalysis
+}
+
 export async function fetchEntry(
   id: number,
   signal: AbortSignal,
