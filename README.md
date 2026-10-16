@@ -195,6 +195,24 @@ curl "http://localhost:3000/api/autocomplete?q=ver&limit=3"
 }
 ```
 
+### `POST /api/parse`
+
+Analyzes a German text (JSON body `{ "text": "…" }`, at most 5,000 characters; `413` above that).
+Returns every piece of the text in order, so it can be rebuilt exactly: words carry
+`candidates` (the entries the word can be, most likely first, each with `viaForm` = "this word is
+an inflected form of that entry") or, for unknown words, `compound` (a split into known parts,
+e.g. *Wasserflasche* → Wasser + Flasche) when one exists. `stats` counts words, distinct words and
+words not found.
+
+```bash
+curl -X POST http://localhost:3000/api/parse -H "Content-Type: application/json"   -d '{"text":"Ich ging nach Hause."}'
+```
+
+The lemma is chosen from the keys the ingest already stores for inflected forms; ranking uses a
+part-of-speech prior (articles, prepositions and pronouns first), whether the word is capitalised
+in the middle of a sentence (a noun) and the size of the entry. Without a frequency list some
+ambiguous words still pick the wrong lemma first (*mir* → es); the other candidates are returned.
+
 ### `GET /api/entry/:id`
 
 Full stored entry as JSON (forms, senses, examples, sounds, relations).

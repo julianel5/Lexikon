@@ -9,6 +9,11 @@ not versioned yet, so everything so far is listed under **Unreleased**.
 
 ### Added
 
+- Analyze a text (`/text`, "Analyze text" button in the header): paste German text and every
+  word is resolved to its dictionary form (*ging* → gehen, *Häusern* → Haus), with the unknown
+  ones marked, compounds split into their parts (*Wasserflaschendeckel* → Wasserflasche +
+  Deckel) and the list of distinct words of the text. Select a word for its meaning, or open
+  its entry; the browser's back button returns to the analysis. Backed by `POST /api/parse`.
 - Reverse search with several English words: `hot water`, `good morning`, `thank you`,
   `washing machine`. The query is cut into content words like the glosses were (`to go` is just
   `go`), and an entry must contain all of them; entries whose translation contains the whole
