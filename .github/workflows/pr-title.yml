@@ -17,8 +17,14 @@ jobs:
       - name: Check that the title follows Conventional Commits
         env:
           TITLE: ${{ github.event.pull_request.title }}
+          ACTOR: ${{ github.event.pull_request.user.login }}
         run: |
           pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: [^ ].{0,70}$'
+          # Dependabot writes long titles ("bump X from A to B in /dir in the group"); keep the
+          # type and scope check for it but not the length limit.
+          if [ "$ACTOR" = "dependabot[bot]" ]; then
+            pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: [^ ].*$'
+          fi
           if printf '%s' "$TITLE" | grep -Eq "$pattern"; then
             echo "OK: $TITLE"
           else
