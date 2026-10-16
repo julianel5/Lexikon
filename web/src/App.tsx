@@ -129,6 +129,7 @@ export default function App() {
         {selectedId === null ? (
           <Search
             query={search.query}
+            debouncedQuery={search.debouncedQuery}
             results={search.results}
             status={search.status}
             error={search.error}

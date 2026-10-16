@@ -1,12 +1,16 @@
 import { useEffect, useState, type KeyboardEvent } from 'react'
 import type { SuggestResult } from '../lib/api'
 import { useAutocomplete } from '../lib/useAutocomplete'
+import { useSentence } from '../lib/useSentence'
 import type { SearchStatus } from '../lib/useSearch'
 import { SearchBar } from './SearchBar'
 import { ResultsList } from './ResultsList'
+import { SentenceView } from './SentenceView'
 
 interface SearchProps {
   query: string
+  /** the query the results were fetched for */
+  debouncedQuery: string
   results: SuggestResult[]
   status: SearchStatus
   error: string | null
@@ -19,6 +23,7 @@ interface SearchProps {
 
 export function Search({
   query,
+  debouncedQuery,
   results,
   status,
   error,
@@ -29,6 +34,22 @@ export function Search({
   onSelect,
 }: SearchProps) {
   const hasQuery = query.trim() !== ''
+
+  // --- sentence mode ---------------------------------------------------- //
+  // A query of several words that reads as German text (most words resolve to entries) and is
+  // not itself a phrase of the dictionary is shown cut into words, with the card of each word.
+  // Anything else (a German phrase, an English search like "hot water") stays a normal search.
+  const sentence = useSentence(debouncedQuery.trim())
+  const germanPhrase = results.some((r) => r.kind <= 2)
+  const resolved = sentence
+    ? sentence.tokens.filter((t) => t.word && (t.candidates?.length || t.compound)).length
+    : 0
+  const sentenceMode =
+    sentence !== null &&
+    !loading &&
+    !germanPhrase &&
+    sentence.stats.words >= 2 &&
+    resolved / sentence.stats.words >= 0.6
   const [selectedIndex, setSelectedIndex] = useState(-1)
 
   // --- autocomplete ----------------------------------------------------- //
@@ -111,6 +132,15 @@ export function Search({
         activeIndex={activeSuggestion}
         onPick={pickSuggestion}
       />
+      {sentenceMode && sentence ? (
+        <SentenceView
+          key={debouncedQuery.trim()}
+          analysis={sentence}
+          onOpenEntry={onSelect}
+          onSelectTerm={onQueryChange}
+        />
+      ) : (
+        <>
       {status === 'ready' && reflexFallback && results.length > 0 && (
         <p className="mt-3 px-1 text-sm text-slate-400">
           Showing results for{' '}
@@ -130,6 +160,8 @@ export function Search({
         onSelect={onSelect}
         selectedIndex={selectedIndex}
       />
+        </>
+      )}
     </section>
   )
 }
