@@ -77,6 +77,7 @@ const SUGGEST_SQL = `
   WHERE (k.kind = 0 AND k.key = @k0)
      OR (k.kind = 1 AND k.key = @k1)
      OR (k.kind = 2 AND k.key = @k2)
+     OR (k.kind = 3 AND k.key = @k3)
   GROUP BY e.id
   ORDER BY kind ASC, exact_form DESC, length(e.word) ASC, e.word ASC
   LIMIT @limit
@@ -95,6 +96,8 @@ function runSuggest(query: string, limit: number): SuggestResult[] {
     k0: folded.exact,
     k1: folded.translit,
     k2: folded.strip,
+    // English keys are plain lower-cased words, so the exact (NFC + lowercase) key is used
+    k3: folded.exact,
     limit: Math.min(Math.max(limit, 1), 100),
   });
   return rows.map((row) => {

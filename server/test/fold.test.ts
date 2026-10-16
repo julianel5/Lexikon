@@ -9,7 +9,14 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { exactKey, foldQuery, stripKey, translitKey } from "../src/fold.js";
+import {
+  KIND_ENGLISH,
+  exactKey,
+  foldQuery,
+  kindName,
+  stripKey,
+  translitKey,
+} from "../src/fold.js";
 
 interface Case {
   input: string;
@@ -44,5 +51,10 @@ describe("search-key folding", () => {
     assert.equal(folded.exact, "fuß");
     assert.equal(folded.translit, "fuss");
     assert.equal(folded.strip, "fus");
+  });
+
+  it("names the reverse-search kind", () => {
+    assert.equal(KIND_ENGLISH, 3);
+    assert.equal(kindName(KIND_ENGLISH), "english");
   });
 });

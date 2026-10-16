@@ -6,18 +6,25 @@
  *   kind 0  exact     NFC + lowercase            "schön"  -> "schön"
  *   kind 1  translit  ä→ae ö→oe ü→ue ß→ss        "schön"  -> "schoen"
  *   kind 2  strip     ä→a  ö→o  ü→u  ß→s         "schön"  -> "schon"
+ *   kind 3  english   word of a gloss (reverse search); built by the ingest only
  */
 
 export const KIND_EXACT = 0;
 export const KIND_TRANSLIT = 1;
 export const KIND_STRIP = 2;
+export const KIND_ENGLISH = 3;
 
-export type Kind = typeof KIND_EXACT | typeof KIND_TRANSLIT | typeof KIND_STRIP;
+export type Kind =
+  | typeof KIND_EXACT
+  | typeof KIND_TRANSLIT
+  | typeof KIND_STRIP
+  | typeof KIND_ENGLISH;
 
 const KIND_NAMES: Record<number, string> = {
   [KIND_EXACT]: "exact",
   [KIND_TRANSLIT]: "translit",
   [KIND_STRIP]: "strip",
+  [KIND_ENGLISH]: "english",
 };
 
 const TRANSLIT: Record<string, string> = {
