@@ -9,6 +9,10 @@ not versioned yet, so everything so far is listed under **Unreleased**.
 
 ### Added
 
+- Reverse search (English → German): typing `house`, `water` or `go` finds *Haus*, *Wasser*
+  and *gehen*. The ingest indexes the content words of every gloss as `kind 3` search keys,
+  skipping qualifiers, stopwords and glosses that only describe the word ("alternative spelling
+  of …"); results found this way show an `ENG` badge. German matches always rank first.
 - As-you-type suggestions in the search box, backed by `GET /api/autocomplete` and a ranked
   `autocomplete` table built by the ingest (keyboard navigation, accessible combobox).
 - Native-speaker pronunciation: recordings from Wikimedia Commons are played through a

@@ -108,10 +108,21 @@ time in `server/src/fold.ts` and at build time in `ingest/ingest.py`.
 | 0 | exact | NFC + lowercase | `schön` |
 | 1 | translit | ä→ae, ö→oe, ü→ue, ß→ss | `schoen` |
 | 2 | strip | ä→a, ö→o, ü→u, ß→s | `schon` |
+| 3 | english | content word of a gloss (reverse search) | `to go` → `go` |
 
-All three kinds are always inserted, even when they coincide, so `Fuß` is
+Kinds 0-2 are always inserted, even when they coincide, so `Fuß` is
 findable as `fuss`, `fus` and `fuß`. Results are ordered `kind` ascending, so
-exact matches rank before transliterated/loose ones. Inflected pages redirect to
+exact matches rank before transliterated/loose ones, and **German matches always
+come before English ones**.
+
+**Reverse search (kind 3).** The ingest also indexes the content words of every
+gloss, so an English word finds the German entries that translate it (`house` →
+*Haus*). Qualifiers in parentheses, stopwords and glosses that only describe the
+word ("alternative spelling of …") are skipped. For kind 3 the `exact_form`
+column is a relevance score (4 = a whole translation of the first sense, 3 = a
+whole translation of a later sense, 2 = a word of the headline glosses,
+1 = a mention further down); ties are broken by how many senses and examples the
+entry documents. Kind 3 keys are never used for autocomplete. Inflected pages redirect to
 their lemma instead of being stored as separate entries.
 
 ## API reference
@@ -126,7 +137,9 @@ Base URL: `http://localhost:3000`
 
 ### `GET /api/suggest?q={query}&limit={n}`
 
-Folded lookup across the three key kinds, joined with entry metadata.
+Folded lookup across the four key kinds (German exact/translit/strip, then English),
+joined with entry metadata. Each result's `kind`/`match` says how it was found; kind 3
+(`"english"`) means the German word was found through its English translation.
 
 ```bash
 curl "http://localhost:3000/api/suggest?q=schoen"
@@ -214,9 +227,10 @@ CREATE TABLE entries (
 
 CREATE TABLE search_keys (
   key        TEXT    NOT NULL,
-  kind       INTEGER NOT NULL,    -- 0 exact, 1 translit, 2 strip
+  kind       INTEGER NOT NULL,    -- 0 exact, 1 translit, 2 strip, 3 english
   entry_id   INTEGER NOT NULL,
-  exact_form INTEGER NOT NULL,    -- 1 = headword, 0 = inflected/alt form
+  exact_form INTEGER NOT NULL,    -- kinds 0-2: 1 = headword, 0 = inflected/alt form
+                                  -- kind 3: relevance score 1-4
   PRIMARY KEY (kind, key, entry_id)
 ) WITHOUT ROWID;
 
