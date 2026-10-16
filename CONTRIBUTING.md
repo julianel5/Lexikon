@@ -46,8 +46,8 @@ Studio Build Tools (or use WSL).
 
 ## Checks
 
-There is no test suite yet, so these are the checks CI runs (see `.github/workflows/ci.yml`).
-Run them before opening a pull request:
+These are the checks CI runs (see `.github/workflows/`). Run them before opening a pull
+request:
 
 ```bash
 # web
@@ -59,12 +59,18 @@ npm run build       # production build
 # server
 cd server
 npx tsc --noEmit    # type check
+npm test            # unit tests (node:test via tsx)
 
-# ingest: the fixture must build and pass its own verification
-python ingest/ingest.py ingest/fixtures/sample.jsonl -o /tmp/lexikon-check.db
+# ingest
+python -m unittest discover -s ingest -p "test_*.py"
+python ingest/ingest.py ingest/fixtures/sample.jsonl -o data/check.db   # must build and verify
 ```
 
-When you fix a bug, say in the description how you reproduced it and how you checked the fix.
+The tests currently cover the search-key folding, which must give the same keys in
+`ingest/ingest.py` and `server/src/fold.ts` (`ingest/fixtures/fold_cases.json` holds the shared
+expected values). If you change the folding, update the cases and both implementations, then
+rebuild the database. When you fix a bug, add a test if it can be reproduced without the full
+dictionary, and say in the description how you reproduced and checked it.
 
 ## Code style
 
