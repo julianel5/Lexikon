@@ -19,9 +19,12 @@ Schema:
     kind 2 = strip    ä→a  ö→o  ü→u  ß→s        "schön"   -> "schon"
     kind 3 = english  word taken from a gloss    "to go"   -> "go"   (reverse search)
 
-    For kind 3, exact_form = 1 when the word is part of the entry's headline
-    translation (first sense, first glosses), 0 when it only appears further
-    down. These keys are never used for autocomplete.
+    For kind 3, exact_form is a relevance score (higher is better), not a flag:
+        4  a whole translation of the first sense        "to go"      -> go
+        3  a whole translation of a later sense
+        2  a word of the headline glosses (first sense, first glosses)
+        1  a word found anywhere else in the glosses
+    These keys are never used for autocomplete.
 
     Every entry gets all three keys (even when the folded values coincide) so
     that query-time lookups are symmetric: a query for "Fuß" transforms to
@@ -175,6 +178,11 @@ _META_GLOSS_RE = re.compile(
 
 # The first glosses of the first sense are the entry's headline translation
 HEADLINE_GLOSSES = 3
+# Relevance of an English key (stored in search_keys.exact_form for kind 3)
+SCORE_WHOLE_FIRST_SENSE = 4
+SCORE_WHOLE_LATER_SENSE = 3
+SCORE_HEADLINE = 2
+SCORE_MENTION = 1
 # Upper bound of distinct English keys per entry (very long entries would otherwise dominate)
 MAX_ENGLISH_KEYS = 60
 
@@ -197,20 +205,35 @@ def english_tokens(gloss: str) -> list[str]:
 
 
 def english_keys(senses: list[dict]) -> list[tuple[str, int]]:
-    """(key, headline) pairs for the reverse index of one entry.
+    """(key, score) pairs for the reverse index of one entry.
 
-    ``headline`` is 1 when the word is part of the first sense's first glosses.
-    Headline words are collected first so the per-entry cap never drops them.
+    The score says how central the English word is to the entry (see SCORE_*): a gloss part
+    that is exactly that word ("water" for Wasser, "to go" for gehen) beats a word that only
+    appears inside a longer description ("a small house" for Häusl). Senses are visited in
+    order and the best score per word wins, so the per-entry cap drops the least relevant
+    keys last.
     """
     keys: dict[str, int] = {}
     for sense_index, sense in enumerate(senses):
         for gloss_index, gloss in enumerate(sense.get("glosses") or []):
-            headline = 1 if sense_index == 0 and gloss_index < HEADLINE_GLOSSES else 0
-            for token in english_tokens(gloss):
-                if token in keys:
-                    keys[token] = max(keys[token], headline)
-                elif len(keys) < MAX_ENGLISH_KEYS:
-                    keys[token] = headline
+            headline = sense_index == 0 and gloss_index < HEADLINE_GLOSSES
+            # Drop the qualifiers *before* splitting: they may contain commas or semicolons
+            # ("book (collection of sheets; long work)") that are not separators.
+            plain = _QUALIFIER_RE.sub(" ", gloss)
+            for part in re.split(r"[;,]", plain):
+                tokens = english_tokens(part)
+                whole = len(tokens) == 1
+                for token in tokens:
+                    if whole:
+                        score = SCORE_WHOLE_FIRST_SENSE if sense_index == 0 else SCORE_WHOLE_LATER_SENSE
+                    elif headline:
+                        score = SCORE_HEADLINE
+                    else:
+                        score = SCORE_MENTION
+                    if token in keys:
+                        keys[token] = max(keys[token], score)
+                    elif len(keys) < MAX_ENGLISH_KEYS:
+                        keys[token] = score
     return list(keys.items())
 
 
@@ -645,8 +668,8 @@ def run(input_path: Path, output_path: Path, batch_size: int) -> dict:
             for form in record["forms"]:
                 for kind, key in iter_keys(form["form"]):
                     key_rows.append((key, kind, next_id, 0))
-            for key, headline in english_keys(senses):
-                key_rows.append((key, KIND_ENGLISH, next_id, headline))
+            for key, score in english_keys(senses):
+                key_rows.append((key, KIND_ENGLISH, next_id, score))
 
             if len(entry_rows) >= batch_size:
                 flush()
