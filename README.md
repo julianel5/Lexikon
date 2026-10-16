@@ -1,15 +1,26 @@
 # Lexikon
 
-A minimalist, ad-free **German → English dictionary**. Search-first UI, as-you-type
-suggestions, umlaut/ß folding, and rich entry pages (IPA and native-speaker audio,
-morphology, senses, examples and relations).
+A fast, ad-free **German → English dictionary for learners**, built for immersion: look a word
+up while you read, listen or watch, and get the answer without ads, accounts or a slow page.
+Inspired by [Jiten](https://jiten.moe), which does the same for Japanese.
+
+- **Search that forgives you**: `schoen`, `schön` and `schon` all find *schön*; suggestions appear as you type.
+- **Reverse search**: type `house` or `hot water` and find the German words that translate it.
+- **Paste a sentence**: it is cut into words, each one resolved to its dictionary form
+  (*ging* → *gehen*), with compounds split (*Wasserflasche* → Wasser + Flasche).
+- **Rich entries**: IPA, native-speaker audio, genders and articles, senses, examples, relations
+  and complete grammar tables.
+- **Light and dark theme**, shareable URLs and a layout that works on a phone.
 
 [![CI](https://github.com/julianel5/Lexikon/actions/workflows/ci.yml/badge.svg)](https://github.com/julianel5/Lexikon/actions/workflows/ci.yml)
 [![Live site](https://img.shields.io/badge/live-lexikon.up.railway.app-7c3aed)](https://lexikon.up.railway.app)
 
 <p align="center">
-  <img src="docs/screenshots/desktop.jpg" alt="Lexikon on a computer: the entry for Doppelgänger with its IPA, article, genitive and plural, a sense and an example" width="68%">
-  <img src="docs/screenshots/phone.jpg" alt="Lexikon on a phone: the search box with as-you-type suggestions for 'haus'" width="25%">
+  <img src="docs/screenshots/sentence.jpg" alt="Lexikon in dark mode: the sentence 'Ich ging gestern mit meinen Freunden in die Stadt' cut into words, with the card of 'ich' below" width="49%">
+  <img src="docs/screenshots/desktop.jpg" alt="Lexikon in light mode: the entry for Doppelgänger with its IPA, article, genitive and plural, a sense and an example" width="49%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/phone.jpg" alt="Lexikon on a phone in dark mode: the search box with as-you-type suggestions for 'haus'" width="28%">
 </p>
 
 ```
@@ -23,8 +34,9 @@ kaikki.org German JSONL  ──►  ingest/ingest.py  ──►  data/dictionary
 |-----------|------|
 | Ingest    | Python 3 (stdlib only, optional `tqdm`) → SQLite |
 | API       | Node.js + [Hono](https://hono.dev) + `better-sqlite3` (read-only) |
-| Frontend  | React 18 + Vite 5 + TypeScript + Tailwind CSS v4 |
+| Frontend  | React 18 + Vite + TypeScript + Tailwind CSS v4 |
 | Data      | [kaikki.org](https://kaikki.org) post-processed German Wiktionary dump |
+| Hosting   | [Railway](https://railway.com): API with a persistent volume, web as static files behind nginx |
 
 ## Repository layout
 
@@ -32,21 +44,23 @@ kaikki.org German JSONL  ──►  ingest/ingest.py  ──►  data/dictionary
 .
 ├── ingest/            # Python pipeline: JSONL dump -> SQLite
 │   ├── ingest.py
+│   ├── test_fold.py   # unit tests (folding and English word cutting)
 │   ├── requirements.txt
-│   └── fixtures/      # small regression fixture
+│   └── fixtures/      # sample dump + cases shared with the server tests
 ├── data/              # build output (gitignored, regenerate)
 │   ├── raw/           # downloaded dump
 │   └── dictionary.db
 ├── server/            # Hono + better-sqlite3 API
 │   ├── Dockerfile
-│   └── src/{index,db,fold}.ts
+│   ├── src/           # index (routes), db (queries), fold, english, parse (text analysis)
+│   └── test/          # node:test unit tests
 ├── web/               # React + Vite + Tailwind UI
 │   ├── Dockerfile
 │   └── src/
-│       ├── components/  # Search, SearchBar, ResultCard, EntryView, Header, Footer...
-│       └── lib/         # api, search/autocomplete/entry hooks, routing, theme, audio
+│       ├── components/  # Search, SentenceView, ResultCard, EntryView, MorphologyTable...
+│       └── lib/         # api, search/autocomplete/entry/sentence hooks, routing, theme, audio
 ├── deploy/            # nginx config used by web/Dockerfile
-├── docs/              # screenshots
+├── docs/              # screenshots used by this README
 └── .github/           # CI, issue forms, PR template, dependabot
 ```
 
@@ -95,7 +109,19 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-Open <http://localhost:5173> and type a word (e.g. `Haus`, `sprechen`, `schoen`).
+Open <http://localhost:5173> and type a word (e.g. `Haus`, `sprechen`, `schoen`), an English one
+(`house`) or a whole sentence.
+
+### Tests
+
+```bash
+cd server && npm test                                  # API logic: folding, text analysis
+python -m unittest discover -s ingest -p "test_*.py"   # ingest: folding, English word cutting
+```
+
+The folding rules live twice (Python at build time, TypeScript at query time) and are checked
+against the same fixtures in `ingest/fixtures/`, so the two cannot drift apart. More in
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## How search works
 
@@ -129,8 +155,11 @@ way the glosses were (`to go` is just `go`; `server/src/english.ts` mirrors `eng
 `ingest.py`, checked by `ingest/fixtures/english_cases.json`). An entry must contain **all** of
 the words; entries with the whole phrase inside one translation come first, then the weakest
 word's score decides. The words are also tried joined (`dog house` → *doghouse*). Queries with
-non-ASCII letters (a German word such as `schön`) are never cut into pieces. Inflected pages redirect to
-their lemma instead of being stored as separate entries.
+non-ASCII letters (a German word such as `schön`) are never cut into pieces.
+
+**Inflected forms.** Pages of inflected forms (*ging*, *Häusern*) are not stored as entries of
+their own: the form is indexed as a search key of its lemma (`exact_form = 0`), so searching a
+form finds the lemma.
 
 ## API reference
 
@@ -139,7 +168,7 @@ Base URL: `http://localhost:3000`
 ### `GET /api/health`
 
 ```json
-{ "status": "ok", "entries": 102740, "searchKeys": 3788997, "dbPath": "…/data/dictionary.db" }
+{ "status": "ok", "entries": 102740, "searchKeys": 4060857, "dbPath": "…/data/dictionary.db" }
 ```
 
 ### `GET /api/suggest?q={query}&limit={n}`
@@ -207,8 +236,27 @@ e.g. *Wasserflasche* → Wasser + Flasche) when one exists. `stats` counts words
 words not found.
 
 ```bash
-curl -X POST http://localhost:3000/api/parse -H "Content-Type: application/json"   -d '{"text":"Ich ging nach Hause."}'
+curl -X POST http://localhost:3000/api/parse \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Ich ging nach Hause."}'
 ```
+
+```json
+{
+  "tokens": [
+    { "text": "Ich", "start": 0, "end": 3, "word": true,
+      "candidates": [{ "id": 463, "word": "ich", "pos": "pron", "article": null,
+                       "gloss": "I (first person singular nominative (subject) pronoun)", "viaForm": false }] },
+    { "text": " ", "start": 3, "end": 4, "word": false },
+    { "text": "ging", "start": 4, "end": 8, "word": true,
+      "candidates": [{ "id": 1546, "word": "gehen", "pos": "verb", "article": null,
+                       "gloss": "to go, to walk", "viaForm": true }] }
+  ],
+  "stats": { "words": 4, "unique": 4, "unknown": 0 }
+}
+```
+
+(abridged: the real response has more candidates for *Ich* and the tokens of *nach Hause.*)
 
 The lemma is chosen from the keys the ingest already stores for inflected forms; ranking uses a
 part-of-speech prior (articles, prepositions and pronouns first), whether the word is capitalised
@@ -233,7 +281,7 @@ curl "http://localhost:3000/api/entry/866"
 | `PORT` | HTTP port | `3000` |
 | `HOST` | bind address | `0.0.0.0` |
 | `DB_PATH` | path to the SQLite database | `../data/dictionary.db` |
-| `CORS_ORIGIN` | comma-separated allowed origins (`*` to allow all) | `http://localhost:5173,http://127.0.0.1:5173` |
+| `CORS_ORIGIN` | comma-separated allowed origins (`*` to allow all); `GET` and `POST` are allowed | `http://localhost:5173,http://127.0.0.1:5173` |
 
 ### Web (`web/`)
 
@@ -275,7 +323,32 @@ CREATE TABLE autocomplete (
 ) WITHOUT ROWID;
 ```
 
-Current build: **102,740 entries**, **3,788,997 search keys**, ~467 MB.
+Current build: **102,740 entries**, **4,060,857 search keys**.
+
+## Deployment
+
+The live site runs on [Railway](https://railway.com), deployed from `main` on every merge:
+
+- **API** (`server/Dockerfile`): the image contains only the code. The full dictionary lives on
+  a persistent volume mounted at `/data` (`DB_PATH=/data/dictionary.db`), because it is too big
+  to build inside the image. Without `DICT_SOURCE` the image builds from the small sample in
+  `ingest/fixtures/`, which is enough to try it out.
+- **Web** (`web/Dockerfile`): a static build served by nginx (`deploy/nginx.conf.template`).
+  `VITE_API_BASE` is baked in at build time, so it must point to the API's public URL.
+
+To ship a new dictionary, build `dictionary.db` with the ingest, upload it to the volume next
+to the old one, swap the files and restart the API service.
+
+## Roadmap
+
+Known limits, roughly in the order they would be worth fixing:
+
+- **No word frequency data**, so some ambiguous words still pick a rare lemma first
+  (*mir* → es). A frequency list would fix this and enable a "common words" filter.
+- **Separable verbs** (*ich stehe um 7 Uhr auf* → aufstehen) are not recognised.
+- **Multi-word expressions** are only found when the whole phrase is a dictionary entry.
+- **English queries are not lemmatized** (`went` does not find *gehen*).
+- Ideas: Anki export, example sentences from Tatoeba.
 
 ## Notes
 
