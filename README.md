@@ -198,6 +198,8 @@ curl "http://localhost:3000/api/autocomplete?q=ver&limit=3"
 ### `POST /api/parse`
 
 Analyzes a German text (JSON body `{ "text": "…" }`, at most 5,000 characters; `413` above that).
+The web app calls it when the search box holds a sentence: several words, most of which resolve to
+entries, and no dictionary phrase or English search matching the whole query.
 Returns every piece of the text in order, so it can be rebuilt exactly: words carry
 `candidates` (the entries the word can be, most likely first, each with `viaForm` = "this word is
 an inflected form of that entry") or, for unknown words, `compound` (a split into known parts,
