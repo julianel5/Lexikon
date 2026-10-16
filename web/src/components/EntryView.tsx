@@ -55,24 +55,40 @@ function relationSections(entry: Entry): { label: string; items: RelationItem[] 
   return sections
 }
 
-function PosBadge({ pos }: { pos: string }) {
+const POS_STYLES: Record<string, string> = {
+  verb: 'bg-emerald-900/30 text-emerald-300',
+  noun: 'bg-violet-900/30 text-violet-300',
+  name: 'bg-violet-900/30 text-violet-300',
+  adj: 'bg-amber-900/30 text-amber-300',
+  adv: 'bg-cyan-900/30 text-cyan-300',
+}
+
+const PILL =
+  'rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider'
+
+function PosPill({ pos }: { pos: string }) {
   return (
-    <span className="rounded-xl border border-violet-800 bg-violet-950/80 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-violet-300">
+    <span
+      className={`${PILL} ${POS_STYLES[pos] ?? 'bg-slate-800/60 text-slate-300'}`}
+    >
       {pos}
     </span>
   )
 }
 
-function FormBadge({ label, value }: { label: string; value: string }) {
+/** A titled block of the entry card: small grey label, content below. */
+function Section({
+  label,
+  children,
+}: {
+  label: string
+  children: React.ReactNode
+}) {
   return (
-    <span className="inline-flex items-stretch">
-      <span className="rounded-l-xl border border-slate-700/60 bg-slate-800/60 px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
-        {label}
-      </span>
-      <span className="rounded-r-xl border border-l-0 border-slate-700/60 bg-white/10 px-3 py-1 text-sm font-semibold text-white">
-        {value}
-      </span>
-    </span>
+    <section className="mt-6">
+      <h3 className="mb-2 text-sm font-normal text-slate-300">{label}</h3>
+      {children}
+    </section>
   )
 }
 
@@ -184,10 +200,10 @@ function EntryDetails({
   }
 
   return (
-    <article className="flex flex-col gap-8">
+    <article className="rounded-card border border-card-edge bg-card p-4 sm:p-6">
       <header>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <h2 className="min-w-0 text-4xl font-black tracking-tight text-white [overflow-wrap:anywhere] sm:text-5xl md:text-6xl">
+          <h2 className="min-w-0 text-4xl font-semibold tracking-tight text-white [overflow-wrap:anywhere] sm:text-5xl">
             {entry.word}
           </h2>
           <button
@@ -201,7 +217,7 @@ function EntryDetails({
                 : 'No recording or German voice available on this device'
             }
             className={`-m-2 p-2 transition-colors enabled:cursor-pointer enabled:hover:text-violet-400 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500 ${
-              isPlaying ? 'animate-pulse text-violet-400' : 'text-slate-500'
+              isPlaying ? 'animate-pulse text-violet-400' : 'text-slate-400'
             }`}
           >
             <svg
@@ -222,74 +238,87 @@ function EntryDetails({
         </div>
 
         {ipas.length > 0 && (
-          <p className="mt-1 font-mono text-lg text-slate-400">
+          <p className="mt-1 font-mono text-base text-slate-400">
             {ipas.join('  ·  ')}
           </p>
         )}
 
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-          <PosBadge pos={entry.pos} />
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <PosPill pos={entry.pos} />
           <ArticleChips article={entry.article} />
           {entry.separable && (
-            <span className="rounded-xl border border-amber-800 bg-amber-950/80 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-amber-300">
+            <span className={`${PILL} bg-amber-900/30 text-amber-300`}>
               separable
             </span>
           )}
           {!entry.article && entry.gender && (
-            <span className="rounded-xl border border-slate-700 bg-slate-800/60 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-slate-300">
+            <span className={`${PILL} bg-slate-800/60 text-slate-300`}>
               {entry.gender}
             </span>
           )}
-          {fields.map((field) => (
-            <FormBadge
-              key={field.label}
-              label={field.label}
-              value={field.value}
-            />
-          ))}
         </div>
       </header>
 
+      {fields.length > 0 && (
+        <Section label="Forms">
+          <div className="flex flex-wrap gap-x-6 gap-y-1">
+            {fields.map((field) => (
+              <span key={field.label} className="inline-flex items-baseline gap-2">
+                <span className="text-xs text-slate-400">{field.label}</span>
+                <span className="text-base font-semibold text-violet-300">
+                  {field.value}
+                </span>
+              </span>
+            ))}
+          </div>
+        </Section>
+      )}
+
       {senses.length > 0 && (
-        <ol className="flex list-decimal flex-col gap-5 pl-6 marker:font-semibold marker:text-violet-500/70">
-          {senses.map((sense, i) => (
-            <li key={i} className="pl-1">
-              <p className="text-[1.05rem] font-semibold leading-relaxed text-slate-100">
-                {sense.glosses[0]}
-                {sense.glosses.slice(1).map((gloss, gi) => (
-                  <span key={gi} className="font-normal text-slate-400">
-                    , {gloss}
-                  </span>
-                ))}
-              </p>
-              {sense.examples?.map((example, ei) => (
-                <blockquote
-                  key={ei}
-                  className="mt-2 flex flex-col gap-1 rounded-r-xl border-l-2 border-violet-500 bg-slate-900/40 py-2.5 pl-4 pr-3 text-sm italic text-slate-300 transition-all duration-300 hover:bg-slate-900/60"
-                >
-                  <span>{example.text}</span>
-                  {example.en && (
-                    <span className="text-slate-500">{example.en}</span>
-                  )}
-                </blockquote>
-              ))}
-            </li>
-          ))}
-        </ol>
+        <Section label="Meanings">
+          <ol className="flex flex-col gap-2">
+            {senses.map((sense, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="shrink-0 tabular-nums text-slate-400">{i + 1}.</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[1.05rem] leading-relaxed text-slate-100">
+                    {sense.glosses.join('; ')}
+                    {sense.tags?.map((tag) => (
+                      <span
+                        key={tag}
+                        className="ml-1.5 inline-block rounded-full bg-blue-900/30 px-2 py-0.5 text-xs text-blue-300"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </p>
+                  {sense.examples?.map((example, ei) => (
+                    <blockquote
+                      key={ei}
+                      className="mt-1.5 border-l-2 border-card-edge-strong pl-3 text-sm italic text-slate-300"
+                    >
+                      <span>{example.text}</span>
+                      {example.en && (
+                        <span className="block text-slate-500">{example.en}</span>
+                      )}
+                    </blockquote>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Section>
       )}
 
       {relations.map((section) => (
-        <section key={section.label}>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
-            {section.label}
-          </h3>
+        <Section key={section.label} label={section.label}>
           <div className="flex flex-wrap gap-2">
             {section.items.map((item) => (
               <button
                 key={item.word}
                 type="button"
                 onClick={() => onSelectTerm(item.word)}
-                className="flex min-h-9 max-w-full cursor-pointer items-center rounded-xl border border-slate-800 bg-slate-900/70 px-3 py-2 text-left text-xs font-medium [overflow-wrap:anywhere] text-slate-300 transition-all duration-300 hover:border-violet-800/50 hover:bg-violet-950/40 hover:text-violet-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+                className="flex min-h-9 max-w-full cursor-pointer items-center rounded-card border border-card-edge-strong bg-card px-3 py-1.5 text-left text-sm text-slate-200 [overflow-wrap:anywhere] transition-colors hover:border-violet-500/60 hover:text-violet-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
               >
                 {item.word}
                 {item.roman && (
@@ -298,7 +327,7 @@ function EntryDetails({
               </button>
             ))}
           </div>
-        </section>
+        </Section>
       ))}
     </article>
   )
