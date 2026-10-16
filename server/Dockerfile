@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # Build context: repository root (needs both server/ and ingest/).
-FROM node:22-bookworm-slim
+FROM node:25-bookworm-slim
 
 # python3: runs ingest/ingest.py at build time; make/g++: fallback if
 # better-sqlite3 has no prebuilt binary for this platform.
