@@ -9,6 +9,10 @@ not versioned yet, so everything so far is listed under **Unreleased**.
 
 ### Added
 
+- Reverse search with several English words: `hot water`, `good morning`, `thank you`,
+  `washing machine`. The query is cut into content words like the glosses were (`to go` is just
+  `go`), and an entry must contain all of them; entries whose translation contains the whole
+  phrase come first. `dog house` also finds glosses that write it as one word (*doghouse*).
 - Reverse search (English → German): typing `house`, `water` or `go` finds *Haus*, *Wasser*
   and *gehen*. The ingest indexes the content words of every gloss as `kind 3` search keys,
   skipping qualifiers, stopwords and glosses that only describe the word ("alternative spelling

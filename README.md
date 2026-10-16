@@ -122,7 +122,14 @@ word ("alternative spelling of …") are skipped. For kind 3 the `exact_form`
 column is a relevance score (4 = a whole translation of the first sense, 3 = a
 whole translation of a later sense, 2 = a word of the headline glosses,
 1 = a mention further down); ties are broken by how many senses and examples the
-entry documents. Kind 3 keys are never used for autocomplete. Inflected pages redirect to
+entry documents. Kind 3 keys are never used for autocomplete.
+
+**Several English words** (`hot water`, `good morning`) are cut into content words the same
+way the glosses were (`to go` is just `go`; `server/src/english.ts` mirrors `english_words` in
+`ingest.py`, checked by `ingest/fixtures/english_cases.json`). An entry must contain **all** of
+the words; entries with the whole phrase inside one translation come first, then the weakest
+word's score decides. The words are also tried joined (`dog house` → *doghouse*). Queries with
+non-ASCII letters (a German word such as `schön`) are never cut into pieces. Inflected pages redirect to
 their lemma instead of being stored as separate entries.
 
 ## API reference
