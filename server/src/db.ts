@@ -79,7 +79,16 @@ const SUGGEST_SQL = `
      OR (k.kind = 2 AND k.key = @k2)
      OR (k.kind = 3 AND k.key = @k3)
   GROUP BY e.id
-  ORDER BY kind ASC, exact_form DESC, length(e.word) ASC, e.word ASC
+  ORDER BY kind ASC,
+           exact_form DESC,
+           -- Within the same kind and score: German matches put shorter words first. English
+           -- (reverse) matches have many equally good candidates, so the entry with the most
+           -- documented senses and examples (a proxy for how common the word is) goes first.
+           -- The forms table is left out on purpose: it would favour verbs.
+           CASE WHEN MIN(k.kind) = 3
+                THEN -length(json_extract(e.data, '$.senses'))
+                ELSE length(e.word) END ASC,
+           e.word ASC
   LIMIT @limit
 `;
 
@@ -114,7 +123,9 @@ function runSuggest(query: string, limit: number): SuggestResult[] {
       snippet: glosses.length ? `${glosses.join("; ")}${glosses.length === 3 ? " …" : ""}` : "",
       kind: row.kind,
       match: kindName(row.kind),
-      exactForm: row.exact_form === 1,
+      // kinds 0-2: the key is the headword itself (1) or an inflected form (0);
+      // kind 3: any score above 0 is a translation match
+      exactForm: row.exact_form >= 1,
     };
   });
 }
