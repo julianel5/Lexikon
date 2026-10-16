@@ -37,6 +37,22 @@ export default function App() {
     [setQuery],
   )
 
+  // Open the entry for a bare word (e.g. a compound part), falling back to
+  // the search page when the word has no entry of its own.
+  const showEntryByWord = useCallback(
+    (word: string) => {
+      fetchSuggest(word, new AbortController().signal)
+        .then((data) => {
+          const hit =
+            data.results.find((r) => r.word === word) ?? data.results[0]
+          if (hit) showEntry(hit.id)
+          else showSearch(word)
+        })
+        .catch(() => showSearch(word))
+    },
+    [showEntry, showSearch],
+  )
+
   // Browser back/forward.
   useEffect(() => {
     const onPopState = () => {
@@ -143,6 +159,7 @@ export default function App() {
           <EntryView
             id={selectedId}
             onSelectTerm={showSearch}
+            onOpenWord={showEntryByWord}
             onLoaded={handleLoaded}
             onMissing={handleMissing}
           />

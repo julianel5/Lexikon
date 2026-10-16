@@ -80,6 +80,7 @@ export interface Entry {
   senses?: Sense[]
   sounds?: Sound[]
   audio?: AudioClip[]
+  components?: string[]
   auxiliary?: string
   separable?: boolean
   synonyms?: RelationItem[]

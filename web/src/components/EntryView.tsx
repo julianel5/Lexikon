@@ -4,11 +4,14 @@ import { morphFields } from '../lib/morphology'
 import { playNormalized } from '../lib/normalizedAudio'
 import { useEntry } from '../lib/useEntry'
 import { ArticleChips } from './ArticleChips'
+import { MorphologyTable } from './MorphologyTable'
 import { PILL, PosPill } from './Pills'
 
 interface EntryViewProps {
   id: number
   onSelectTerm: (term: string) => void
+  /** Open the entry for a bare word (compound parts); falls back to onSelectTerm. */
+  onOpenWord?: (term: string) => void
   /** Called once the entry has been fetched (used to sync the URL). */
   onLoaded?: (entry: Entry) => void
   /** Called when the id no longer exists (404). */
@@ -75,14 +78,18 @@ function Section({
 export function EntryDetails({
   entry,
   onSelectTerm,
+  onOpenWord,
 }: {
   entry: Entry
   onSelectTerm: (term: string) => void
+  onOpenWord?: (term: string) => void
 }) {
+  const openWord = onOpenWord ?? onSelectTerm
   const fields = morphFields(entry)
   const ipas = ipasOf(entry)
   const senses = entry.senses ?? []
   const relations = relationSections(entry)
+  const components = entry.components ?? []
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
@@ -237,6 +244,26 @@ export function EntryDetails({
             </span>
           )}
         </div>
+
+        {components.length > 0 && (
+          <div className="mt-5 flex flex-col gap-2">
+            <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+              Word breakdown
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {components.map((c, i) => (
+                <button
+                  key={`${c}-${i}`}
+                  type="button"
+                  onClick={() => openWord(c)}
+                  className="group inline-flex items-center rounded-xl border border-slate-700 bg-slate-800/50 px-2.5 py-1 text-sm font-medium text-slate-100 backdrop-blur transition-all hover:border-violet-500/60 hover:bg-slate-700/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
 
       {fields.length > 0 && (
@@ -309,6 +336,8 @@ export function EntryDetails({
           </div>
         </Section>
       ))}
+
+      <MorphologyTable entry={entry} />
     </article>
   )
 }
@@ -332,6 +361,7 @@ export function EntryPreview({
 export function EntryView({
   id,
   onSelectTerm,
+  onOpenWord,
   onLoaded,
   onMissing,
 }: EntryViewProps) {
@@ -360,7 +390,11 @@ export function EntryView({
       )}
 
       {entry && status === 'ready' && (
-        <EntryDetails entry={entry} onSelectTerm={onSelectTerm} />
+        <EntryDetails
+          entry={entry}
+          onSelectTerm={onSelectTerm}
+          onOpenWord={onOpenWord}
+        />
       )}
     </section>
   )

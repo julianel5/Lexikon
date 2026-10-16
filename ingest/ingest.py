@@ -400,6 +400,56 @@ def _relation_item(item):
     return clean or None
 
 
+
+def _extract_components(entry: dict) -> list[str]:
+    """Extract compound constituents from etymology_templates (Kaikki)."""
+    components: list[str] = []
+    seen: set[str] = set()
+    for tmpl in entry.get("etymology_templates") or []:
+        if not isinstance(tmpl, dict):
+            continue
+        name = str(tmpl.get("name") or "").lower()
+        if name not in ("compound", "affix", "suffix", "prefix", "compounding"):
+            continue
+        args = tmpl.get("args") or {}
+        if not isinstance(args, dict):
+            continue
+        # Collect numeric arg keys in ascending order (constituents usually 2,3,...)
+        for key in sorted(args.keys(), key=lambda k: (int(k) if str(k).isdigit() else 10**12)):
+            if not str(key).isdigit():
+                continue
+            idx = int(key)
+            if idx < 2:  # skip language code (1)
+                continue
+            val = args.get(key)
+            if not isinstance(val, str) or not val.strip():
+                continue
+            part = val.strip()
+            if part not in seen:
+                seen.add(part)
+                components.append(part)
+    if not components:
+        for tmpl in entry.get("etymology_templates") or []:
+            if not isinstance(tmpl, dict):
+                continue
+            name = str(tmpl.get("name") or "").lower()
+            if name != "compound":
+                continue
+            exp = tmpl.get("expansion") or ""
+            if not isinstance(exp, str):
+                continue
+            for token in exp.split("+"):
+                t = token.strip()
+                t2 = re.sub(r"\([^)]*\)", "", t).strip()
+                if not t2:
+                    continue
+                m = re.match(r"([A-Za-zÄÖÜäöüß]+(?:-[A-Za-zÄÖÜäöüß]+)*)", t2)
+                if m and m.group(1) not in seen:
+                    seen.add(m.group(1))
+                    components.append(m.group(1))
+    return components
+
+
 def _relations(source: dict) -> dict:
     out = {}
     for field in RELATION_FIELDS:
@@ -532,6 +582,9 @@ def _build_record(entry: dict, word: str, pos: str, senses: list[dict]) -> dict:
     audio = _extract_audio(entry)
     if audio:
         record["audio"] = audio
+    components = _extract_components(entry)
+    if components:
+        record["components"] = components
     record.update(_relations(entry))
     return record
 
