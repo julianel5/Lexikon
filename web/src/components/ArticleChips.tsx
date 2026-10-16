@@ -1,10 +1,10 @@
 const ARTICLE_STYLES: Record<string, string> = {
-  der: 'bg-blue-950/80 border border-blue-800 text-blue-400',
-  die: 'bg-rose-950/80 border border-rose-800 text-rose-400',
-  das: 'bg-emerald-950/80 border border-emerald-800 text-emerald-400',
+  der: 'bg-blue-900/30 text-blue-300',
+  die: 'bg-rose-900/30 text-rose-300',
+  das: 'bg-emerald-900/30 text-emerald-300',
 }
 
-const NEUTRAL = 'bg-slate-800/60 border border-slate-700 text-slate-300'
+const NEUTRAL = 'bg-slate-800/60 text-slate-300'
 
 interface ArticleChipsProps {
   article: string | null
@@ -22,7 +22,7 @@ export function ArticleChips({ article }: ArticleChipsProps) {
       {articles.map((a) => (
         <span
           key={a}
-          className={`rounded-lg px-2.5 py-1 text-xs font-bold uppercase tracking-widest ${
+          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wider ${
             ARTICLE_STYLES[a] ?? NEUTRAL
           }`}
         >
