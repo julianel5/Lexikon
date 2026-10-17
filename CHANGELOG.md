@@ -12,7 +12,8 @@ behaviour).
 
 - The web app sends `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`,
   `X-Frame-Options`, `Permissions-Policy` and `Content-Security-Policy` headers. The CSP only allows
-  what the site really loads: its own bundle, the API and the pronunciation clips from Wikimedia.
+  what the site really loads: its own bundle, the API, the pronunciation clips from Wikimedia and
+  the Cloudflare Web Analytics beacon.
   The theme bootstrap therefore moved from an inline script in `index.html` to `public/theme.js`
   (an inline script would be blocked by `script-src 'self'`).
 

@@ -14,16 +14,19 @@ server {
     # Content-Security-Policy. Only the origins the app really uses, so a script
     # injected into a stored string could not run or phone home:
     #   script-src  'self'  the Vite bundle and /theme.js (the theme bootstrap was
-    #                       moved out of index.html because it was inline)
+    #                       moved out of index.html because it was inline), plus
+    #                       https://static.cloudflareinsights.com for the Web
+    #                       Analytics beacon that Cloudflare injects in front of us
     #   style-src   'self' 'unsafe-inline'  the bundle CSS; the app writes no inline
     #                       styles, unsafe-inline is kept so an unforeseen one can
     #                       never unstyle the whole site
     #   connect-src 'self' https://api.lexikon.moe  the API (api.ts)
     #             https://upload.wikimedia.org  the pronunciation clips, which
     #                       normalizedAudio.ts loads with fetch(), not <audio>
+    #             https://cloudflareinsights.com  where the analytics beacon reports
     #   media-src   https://upload.wikimedia.org  any future <audio> tag
     #   img-src     'self' data:  icons and the social preview
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.lexikon.moe https://upload.wikimedia.org; media-src 'self' https://upload.wikimedia.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.lexikon.moe https://upload.wikimedia.org https://cloudflareinsights.com; media-src 'self' https://upload.wikimedia.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';" always;
 
     # The first public URL (Railway's own domain) sends visitors to the custom domain
     if ($host = lexikon.up.railway.app) {
@@ -54,6 +57,6 @@ server {
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
         add_header X-Frame-Options "DENY" always;
         add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-        add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.lexikon.moe https://upload.wikimedia.org; media-src 'self' https://upload.wikimedia.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';" always;
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.lexikon.moe https://upload.wikimedia.org https://cloudflareinsights.com; media-src 'self' https://upload.wikimedia.org; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';" always;
     }
 }
