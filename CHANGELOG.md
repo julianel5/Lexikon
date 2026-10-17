@@ -8,6 +8,14 @@ behaviour).
 
 ## [Unreleased]
 
+### Added
+
+- A web app manifest and install icons: Lexikon can be installed on a phone or a computer ("Add to
+  home screen" / "Install app"). Thanks to Prashant ([@Prashaxt](https://github.com/Prashaxt)), our
+  first outside contribution (#63).
+- Multi-word forms of separable verbs in the sentence view: *stehe auf* resolves to *aufstehen*, *komme
+  mit* to *mitkommen*. It only works when the two parts are next to each other (#64).
+
 ## [0.2.0] - 2026-10-17
 
 Word frequencies, a site of its own and a cleaner interface.
