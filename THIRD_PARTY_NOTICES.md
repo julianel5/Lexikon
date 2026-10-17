@@ -48,6 +48,13 @@ stored. The browser loads them directly from
 [Wikimedia Commons](https://commons.wikimedia.org/), where each file has its own licence (mostly
 CC BY-SA, CC BY or public domain) and author credit on its file page.
 
+## Icon
+
+The red book with an Eszett (`web/public/favicon.svg` and the files made from it) was drawn for this
+project. The outline of the letter *ß* is taken from DejaVu Sans Bold, which is free to use, modify
+and redistribute under the [DejaVu fonts licence](https://dejavu-fonts.github.io/License.html)
+(Bitstream Vera licence plus public-domain changes); only the outline is used, not the font.
+
 ## Libraries
 
 | Library | Licence |
