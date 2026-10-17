@@ -16,6 +16,7 @@ dist/
 # Local dev server logs
 server.log
 server.err
+web.log
 
 # OS / editor
 .DS_Store
