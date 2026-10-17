@@ -8,6 +8,33 @@ behaviour).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-17
+
+Word frequencies, a site of its own and a cleaner interface.
+
+### Added
+
+- Link previews: the page has a description and Open Graph / Twitter metadata with a 1200x630
+  image, so a shared link shows a card (Reddit, Discord, Telegram, Slack...).
+- "Report a problem with this entry" on every entry opens the *wrong or missing entry* issue form on
+  GitHub with the word and the page already filled in; the footer links to the issue chooser.
+- The footer credits the Leipzig Corpora Collection (CC BY) next to Wiktionary.
+- A real `robots.txt`.
+- Word frequencies in the ingest: `--freq` reads a Leipzig Corpora Collection word list and stores,
+  per entry, how often its headword and inflected forms occur (`entries.freq`, `entries.freq_rank`,
+  and `autocomplete.freq`). It is optional.
+- The frequency rank of a word (`#349`, 1 = most frequent) is shown on entry pages and search results.
+- The API uses the frequencies when the database has them: `/api/parse` ranks the candidate entries
+  of a word by how common they are (so *Danach* is *danach* and not a form of *nach*, and *meinen*
+  in *meinen Freunden* is the possessive), `/api/suggest` and `/api/autocomplete` put common words
+  first (*Wasser* before *wasserundurchlässig*), `/api/entry/:id` returns `frequency` and
+  `/api/suggest` results return `freqRank`. `/api/health` reports `frequencyEntries`. A database
+  without frequencies keeps working and ranking as before.
+- A site icon: a red book with an Eszett on the cover (SVG favicon, `favicon.ico` and an iOS icon).
+- `deploy/deploy-db.sh`: one command to ship a rebuilt database to Railway (back up, upload, check,
+  swap, restart, verify).
+- `AGENTS.md` and `CLAUDE.md`: instructions for coding agents working on the project.
+
 ### Changed
 
 - The footer is simpler: the credits have the same size as the data credits, and the GitHub and Ko-fi
@@ -30,24 +57,10 @@ behaviour).
   the focus), and go away with Esc or when you pick one. A page opened with a search already in it
   (a link, a reload) starts without the list.
 
-### Added
+### Fixed
 
-- Link previews: the page has a description and Open Graph / Twitter metadata with a 1200x630
-  image, so a shared link shows a card (Reddit, Discord, Telegram, Slack...).
-- "Report a problem with this entry" on every entry opens the *wrong or missing entry* issue form on
-  GitHub with the word and the page already filled in; the footer links to the issue chooser.
-- The footer credits the Leipzig Corpora Collection (CC BY) next to Wiktionary.
-- A real `robots.txt`.
-- Word frequencies in the ingest: `--freq` reads a Leipzig Corpora Collection word list and stores,
-  per entry, how often its headword and inflected forms occur (`entries.freq`, `entries.freq_rank`,
-  and `autocomplete.freq`). It is optional.
-- The frequency rank of a word (`#349`, 1 = most frequent) is shown on entry pages and search results.
-- The API uses the frequencies when the database has them: `/api/parse` ranks the candidate entries
-  of a word by how common they are (so *Danach* is *danach* and not a form of *nach*, and *meinen*
-  in *meinen Freunden* is the possessive), `/api/suggest` and `/api/autocomplete` put common words
-  first (*Wasser* before *wasserundurchlässig*), `/api/entry/:id` returns `frequency` and
-  `/api/suggest` results return `freqRank`. `/api/health` reports `frequencyEntries`. A database
-  without frequencies keeps working and ranking as before.
+- The "Show full grammar" tables looked like dark grey boxes in the light theme: they use the theme's
+  card colours now, like the rest of the interface.
 
 ## [0.1.0] - 2026-10-16
 
@@ -103,5 +116,6 @@ First public version.
 - Content clipped on narrow screens (the audio button and long related terms went off-screen at
   320 px) and tap targets that were too small.
 
-[Unreleased]: https://github.com/julianel5/Lexikon/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/julianel5/Lexikon/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/julianel5/Lexikon/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/julianel5/Lexikon/releases/tag/v0.1.0
