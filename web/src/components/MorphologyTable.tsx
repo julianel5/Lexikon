@@ -43,6 +43,29 @@ function getTenseGroup(tags: string[] | undefined): string {
   return 'Other'
 }
 
+const ADJ_DEGREES = ['Positive', 'Comparative', 'Superlative'] as const
+const ADJ_TYPES = ['Strong', 'Weak', 'Mixed'] as const
+type AdjType = (typeof ADJ_TYPES)[number]
+
+function getDegree(tags: string[] | undefined): string {
+  if (!tags) return 'Positive'
+  const t = tags.map((x) => x.toLowerCase())
+  if (t.some((x) => x.includes('comparative'))) return 'Comparative'
+  if (t.some((x) => x.includes('superlative'))) return 'Superlative'
+  return 'Positive'
+}
+
+/** The inflection type of an adjective form, or '' when it carries none. */
+function getInflection(tags: string[] | undefined): AdjType | '' {
+  if (!tags) return ''
+  const t = tags.map((x) => x.toLowerCase())
+  if (t.some((x) => x.includes('strong') || x.includes('without-article'))) return 'Strong'
+  // Mixed before weak: "indefinite" contains "definite".
+  if (t.some((x) => x.includes('mixed') || x.includes('indefinite'))) return 'Mixed'
+  if (t.some((x) => x.includes('weak') || x.includes('definite'))) return 'Weak'
+  return ''
+}
+
 function getPerson(tags: string[] | undefined): string {
   if (!tags) return ''
   const t = tags.map((x) => x.toLowerCase())
@@ -61,7 +84,8 @@ export function MorphologyTable({ entry }: MorphologyTableProps) {
   const forms = entry.forms ?? []
   const pos = (entry.pos ?? '').toLowerCase()
 
-  const nounLike = pos === 'noun' || pos === 'name' || pos === 'proper noun' || pos === 'adjective' || pos === 'adj'
+  const nounLike = pos === 'noun' || pos === 'name' || pos === 'proper noun'
+  const isAdjective = pos === 'adj' || pos === 'adjective'
 
   const cases = ['Nom', 'Acc', 'Dat', 'Gen']
   const numbers = ['Sing', 'Plur']
@@ -77,6 +101,33 @@ export function MorphologyTable({ entry }: MorphologyTableProps) {
         declension[c][n].push(f)
         hasDecl = true
       }
+    }
+  }
+
+  // An adjective inflects by degree (positive/comparative/superlative) *and*
+  // type (strong/weak/mixed), so a single case x number grid cannot hold it:
+  // dumping every form into one cell showed the same endings over and over.
+  const adjCells = new Map<string, string[]>()
+  const adjDegrees = new Set<string>()
+  let hasAdj = false
+  if (isAdjective) {
+    for (const f of forms) {
+      const t = getInflection(f.tags)
+      const c = getCase(f.tags)
+      const n = getNumber(f.tags)
+      if (!t || !c || !n) continue
+      const d = getDegree(f.tags)
+      const key = `${d}|${t}|${c}|${n}`
+      const cell = adjCells.get(key)
+      if (cell) {
+        // Wiktionary often lists one slot twice (strong and strong
+        // without-article); show the form once.
+        if (!cell.includes(f.form)) cell.push(f.form)
+      } else {
+        adjCells.set(key, [f.form])
+      }
+      adjDegrees.add(d)
+      hasAdj = true
     }
   }
 
@@ -109,7 +160,12 @@ export function MorphologyTable({ entry }: MorphologyTableProps) {
     }
   }
 
-  const hasAny = hasDecl || hasVerb
+  const hasAny = hasDecl || hasAdj || hasVerb
+
+  const adjSlots: { c: string; n: string; slot: string }[] = []
+  for (const n of numbers) {
+    for (const c of cases) adjSlots.push({ c, n, slot: `${c} ${n}` })
+  }
 
   if (!hasAny) return null
 
@@ -175,6 +231,59 @@ export function MorphologyTable({ entry }: MorphologyTableProps) {
               </div>
             </div>
           )}
+
+          {hasAdj &&
+            ADJ_DEGREES.filter((d) => adjDegrees.has(d)).map((degree) => (
+              <div
+                key={degree}
+                className="overflow-x-auto rounded-card border border-card-edge-strong bg-card p-4 scrollbar-thin scrollbar-thin-dark"
+              >
+                <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">
+                  Adjective · {degree}
+                </h3>
+                <div className="grid min-w-[30rem] grid-cols-[minmax(4.5rem,auto)_repeat(3,minmax(0,1fr))] gap-2 text-sm">
+                  <div />
+                  {ADJ_TYPES.map((t) => (
+                    <div
+                      key={t}
+                      className="px-2 py-1 text-center text-xs font-semibold uppercase tracking-wider text-slate-500"
+                    >
+                      {t}
+                    </div>
+                  ))}
+                  {adjSlots.map(({ c, n, slot }) => (
+                    <Fragment key={slot}>
+                      <div className="flex items-center px-2 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                        {slot}
+                      </div>
+                      {ADJ_TYPES.map((t) => {
+                        const list = adjCells.get(`${degree}|${t}|${c}|${n}`) ?? []
+                        return (
+                          <div
+                            key={t}
+                            className="flex h-full w-full min-w-0 flex-col justify-center gap-1 rounded-card border border-card-edge bg-card px-3 py-2"
+                          >
+                            {list.length === 0 ? (
+                              <span className="text-center text-xs text-slate-600">—</span>
+                            ) : (
+                              list.map((form, i) => (
+                                <span
+                                  key={i}
+                                  lang="de"
+                                  className="break-words hyphens-auto text-center text-sm font-medium leading-tight text-slate-100"
+                                >
+                                  {form}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        )
+                      })}
+                    </Fragment>
+                  ))}
+                </div>
+              </div>
+            ))}
 
           {hasVerb && (
             <div className="flex flex-col gap-4">

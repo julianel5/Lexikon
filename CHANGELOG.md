@@ -40,6 +40,9 @@ behaviour).
 - `/api/health` no longer shows the path of the database file.
 - `/sitemap.xml` answers 404 instead of the home page (there is no sitemap yet), so search engines
   do not read it as an empty page.
+- "Show full grammar" on an adjective no longer squeezes every form into the noun declension grid,
+  repeating the same endings in one cell. Adjectives get their own tables, grouped by degree
+  (positive/comparative/superlative) and inflection (strong/weak/mixed), each slot shown once.
 
 ## [0.2.0] - 2026-10-17
 
