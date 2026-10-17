@@ -6,9 +6,7 @@ interface SearchBarProps {
   loading: boolean
   onChange: (value: string) => void
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void
-  onFocus?: () => void
-  onBlur?: () => void
-  /** Autocomplete dropdown. */
+  /** Autocomplete suggestions: a list under the box that pushes the results down. */
   suggestions?: AutocompleteItem[]
   open?: boolean
   activeIndex?: number
@@ -35,8 +33,6 @@ export function SearchBar({
   loading,
   onChange,
   onKeyDown,
-  onFocus,
-  onBlur,
   suggestions = [],
   open = false,
   activeIndex = -1,
@@ -75,8 +71,6 @@ export function SearchBar({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={onKeyDown}
-          onFocus={onFocus}
-          onBlur={onBlur}
           placeholder="Search a German word…"
           aria-label="Search a German word"
           spellCheck={false}
@@ -115,7 +109,7 @@ export function SearchBar({
           id={LISTBOX_ID}
           role="listbox"
           aria-label="Suggestions"
-          className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 py-1"
+          className="mt-1 overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 py-1"
         >
           {suggestions.map((item, index) => (
             <li
@@ -123,8 +117,7 @@ export function SearchBar({
               id={`${LISTBOX_ID}-${index}`}
               role="option"
               aria-selected={index === activeIndex}
-              // mousedown (not click) so the input keeps focus and the
-              // dropdown does not close before the pick registers.
+              // mousedown (not click) so the input keeps its focus while you pick.
               onMouseDown={(e) => {
                 e.preventDefault()
                 onPick?.(item.word)

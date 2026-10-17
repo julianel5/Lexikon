@@ -18,9 +18,10 @@ behaviour).
 - The site moved to its own domain: <https://lexikon.moe>, with the API at `api.lexikon.moe`,
   behind Cloudflare (caching of read-only API responses, a per-IP rate limit, `www` redirect).
   The old Railway URL of the web app redirects; the API one keeps working.
-- The search suggestions no longer cover the results: they get out of the way when you pause
-  typing (after 1.5 s), when you press Enter, and when a page is opened with a search already in it.
-  Typing brings them back.
+- The search suggestions no longer cover the results: they are a list in the page, under the search
+  box, that pushes the results down. They stay while you type (and do not close when the box loses
+  the focus), and go away with Esc or when you pick one. A page opened with a search already in it
+  (a link, a reload) starts without the list.
 
 ### Added
 
