@@ -59,7 +59,49 @@ export function Footer() {
               Sirush
             </a>
           </p>
-          <p>
+          {/* phone: the credits that the licences ask for, without the rest */}
+          <p className="sm:hidden">
+            Data:{' '}
+            <a
+              href="https://de.wiktionary.org/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={textLink}
+            >
+              Wiktionary
+            </a>{' '}
+            (
+            <a
+              href="https://creativecommons.org/licenses/by-sa/4.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={textLink}
+            >
+              CC BY-SA 4.0
+            </a>
+            )
+            <br />
+            Frequencies:{' '}
+            <a
+              href="https://wortschatz.uni-leipzig.de/en/download"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={textLink}
+            >
+              Leipzig Corpora
+            </a>{' '}
+            (
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={textLink}
+            >
+              CC BY
+            </a>
+            )
+          </p>
+          <p className="hidden sm:block">
             Dictionary data from{' '}
             <a
               href="https://de.wiktionary.org/"
