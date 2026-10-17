@@ -3,6 +3,11 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # The first public URL (Railway's own domain) sends visitors to the custom domain
+    if ($host = lexikon.up.railway.app) {
+        return 301 https://lexikon.moe$request_uri;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }

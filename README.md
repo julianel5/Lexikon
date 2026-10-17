@@ -13,7 +13,7 @@ Inspired by [Jiten](https://jiten.moe), which does the same for Japanese.
 - **Light and dark theme**, shareable URLs and a layout that works on a phone.
 
 [![CI](https://github.com/julianel5/Lexikon/actions/workflows/ci.yml/badge.svg)](https://github.com/julianel5/Lexikon/actions/workflows/ci.yml)
-[![Live site](https://img.shields.io/badge/live-lexikon.up.railway.app-7c3aed)](https://lexikon.up.railway.app)
+[![Live site](https://img.shields.io/badge/live-lexikon.moe-7c3aed)](https://lexikon.moe)
 
 <p align="center">
   <img src="docs/screenshots/sentence.jpg" alt="Lexikon in dark mode: the sentence 'Ich ging gestern mit meinen Freunden in die Stadt' cut into words, with the card of 'ich' below" width="49%">
@@ -361,8 +361,16 @@ The live site runs on [Railway](https://railway.com), deployed from `main` on ev
 - **Web** (`web/Dockerfile`): a static build served by nginx (`deploy/nginx.conf.template`).
   `VITE_API_BASE` is baked in at build time, so it must point to the API's public URL.
 
-To ship a new dictionary, build `dictionary.db` with the ingest, upload it to the volume next
-to the old one, swap the files and restart the API service.
+To ship a new dictionary, build `dictionary.db` with the ingest and run `bash deploy/deploy-db.sh`
+(it backs up, uploads, checks, swaps, restarts and verifies), then purge the Cloudflare cache.
+
+**Domains.** The site is at <https://lexikon.moe> and the API at <https://api.lexikon.moe>, both
+proxied by Cloudflare (SSL mode Full (strict)); `www.lexikon.moe` redirects to the main domain
+and the old Railway URL of the web app redirects too. Cloudflare also protects the API: `GET /api/*`
+responses (except `/api/health`) are cached for a couple of hours, and a rate limit blocks an IP
+that sends more than 100 requests in 10 seconds. `CORS_ORIGIN` on the API holds **one** origin
+(`https://lexikon.moe`): with several, the `Access-Control-Allow-Origin` header would change
+per request and a cached response could be served to the wrong site.
 
 ## Roadmap
 

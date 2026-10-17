@@ -11,7 +11,7 @@ code and can be revisited with the maintainers.
 Lexikon is a fast, ad-free **German → English dictionary for learners**, aimed at immersion
 (looking words up while reading, listening or watching). It is inspired by
 [Jiten](https://jiten.moe) (a Japanese dictionary), but covers German and shares no code or data
-with it. Live at <https://lexikon.up.railway.app>. The owner is `julianel5`; contributors work
+with it. Live at <https://lexikon.moe>. The owner is `julianel5`; contributors work
 through pull requests.
 
 Product priorities, in order: correct lemma and form lookup, search speed, readable entries,

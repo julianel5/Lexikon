@@ -15,7 +15,7 @@
 set -euo pipefail
 
 GZ="${1:-data/dictionary.db.gz}"
-API_BASE="${API_BASE:-https://api-production-b449.up.railway.app}"
+API_BASE="${API_BASE:-https://api.lexikon.moe}"
 VERIFY_WORD="${VERIFY_WORD:-Arbeitszimmer}"
 REMOTE_DIR="/data"
 STAGED="${REMOTE_DIR}/dictionary.db.new.gz"
@@ -82,10 +82,14 @@ fi
 say "7/7 Verifying $VERIFY_WORD is served with components"
 sleep 6
 FOUND=$("$PYTHON" - "$API_BASE" "$VERIFY_WORD" <<'PY'
-import json, sys, urllib.parse, urllib.request
+import json, sys, time, urllib.parse, urllib.request
 api, word = sys.argv[1], sys.argv[2]
+# The API sits behind Cloudflare, which caches GET /api/* responses. A throwaway query
+# parameter makes each request a cache miss, so this reads the database that was just swapped in.
+nocache = "_=" + str(time.time_ns())
 def get(path):
-    return json.load(urllib.request.urlopen(api + path, timeout=20))
+    sep = "&" if "?" in path else "?"
+    return json.load(urllib.request.urlopen(api + path + sep + nocache, timeout=20))
 results = get("/api/suggest?limit=1&q=" + urllib.parse.quote(word)).get("results", [])
 entry = get("/api/entry/" + str(results[0]["id"])) if results else {}
 print("components:", entry.get("components"))
@@ -97,3 +101,5 @@ printf '%s\n' "$FOUND"
 say "Removing the backup"
 railway ssh -- rm -f "$BAK" || true
 printf '\nDEPLOY OK\n'
+printf 'Last step, by hand: Cloudflare dashboard > lexikon.moe > Caching > Configuration > Purge Everything,\n'
+printf 'so visitors do not get answers cached from the previous database (up to 2 hours).\n'

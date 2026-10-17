@@ -8,6 +8,12 @@ behaviour).
 
 ## [Unreleased]
 
+### Changed
+
+- The site moved to its own domain: <https://lexikon.moe>, with the API at `api.lexikon.moe`,
+  behind Cloudflare (caching of read-only API responses, a per-IP rate limit, `www` redirect).
+  The old Railway URL of the web app redirects; the API one keeps working.
+
 ### Added
 
 - Word frequencies in the ingest: `--freq` reads a Leipzig Corpora Collection word list and stores,
