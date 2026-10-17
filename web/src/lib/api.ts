@@ -169,6 +169,10 @@ export interface TextToken {
   word: boolean
   candidates?: TextCandidate[]
   compound?: TextPart[]
+  /** Entries of a multi-word form starting at this word ("stehe auf" -> aufstehen). */
+  phrase?: TextCandidate[]
+  /** Index of the first token of a multi-word form this token continues. */
+  phraseCont?: number
 }
 
 export interface TextAnalysis {

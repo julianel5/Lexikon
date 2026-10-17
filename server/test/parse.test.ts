@@ -29,6 +29,18 @@ function fakeLookup(): Lookup {
     ["essen", [entry(3, "Essen", "noun", 1, 500, "das"), entry(4, "essen", "verb", 1, 900)]],
     ["ich", [entry(5, "ich", "pron", 1)]],
     ["nach", [entry(6, "nach", "prep", 1)]],
+    // multi-word forms of separable verbs: the key is the phrase, the headword is the lemma
+    ["stehe auf", [entry(20, "aufstehen", "verb", 0)]],
+    ["steht auf", [entry(20, "aufstehen", "verb", 0)]],
+    ["kommt mit", [entry(21, "mitkommen", "verb", 0)]],
+    ["ruf mich an", [entry(22, "anrufen", "verb", 0)]],
+    // the single words, so both readings exist side by side
+    ["stehe", [entry(23, "stehen", "verb", 0)]],
+    ["auf", [entry(24, "auf", "prep", 1)]],
+    ["kommt", [entry(25, "kommen", "verb", 0)]],
+    ["mit", [entry(26, "mit", "prep", 1)]],
+    // a phrase whose words have no single-word entry of their own
+    ["bla foo", [entry(27, "blafoo", "verb", 0)]],
   ]);
   const heads = new Map<string, RawCandidate>([
     ["wasser", entry(10, "Wasser", "noun", 1, 900, "das")],
@@ -264,5 +276,47 @@ describe("analyzeText", () => {
 
   it("returns an empty analysis for empty text", () => {
     assert.deepEqual(analyzeText("", lookup), { tokens: [], stats: { words: 0, unique: 0, unknown: 0 } });
+  });
+});
+
+describe("analyzeText multi-word forms", () => {
+  const lookup = fakeLookup();
+
+  it("resolves a separable verb split across two words (stehe auf -> aufstehen)", () => {
+    const { tokens } = analyzeText("Ich stehe auf.", lookup);
+    const stehe = tokens.find((t) => t.text === "stehe")!;
+    assert.equal(stehe.phrase![0]!.word, "aufstehen");
+    assert.equal(stehe.phrase![0]!.viaForm, true);
+    // both readings stay visible: the phrase on the first word, the single word on the second
+    assert.equal(stehe.candidates![0]!.word, "stehen");
+    const auf = tokens.find((t) => t.text === "auf")!;
+    assert.equal(auf.candidates![0]!.word, "auf");
+    assert.equal(auf.phraseCont, tokens.indexOf(stehe));
+  });
+
+  it("resolves a three-word form (ruf mich an -> anrufen)", () => {
+    const { tokens } = analyzeText("Ruf mich an", lookup);
+    const ruf = tokens.find((t) => t.text === "Ruf")!;
+    assert.equal(ruf.phrase![0]!.word, "anrufen");
+  });
+
+  it("does not join words across punctuation", () => {
+    const { tokens } = analyzeText("stehe, auf", lookup);
+    const stehe = tokens.find((t) => t.text === "stehe")!;
+    assert.equal(stehe.phrase, undefined);
+  });
+
+  it("does not invent a phrase that is not in the dictionary", () => {
+    const { tokens } = analyzeText("Ich gehe auf.", lookup);
+    for (const t of tokens) assert.equal(t.phrase, undefined);
+  });
+
+  it("does not count a word as unknown when the phrase finds it", () => {
+    // "bla" and "foo" have no single-word entry; the phrase "bla foo" finds them both
+    const { tokens, stats } = analyzeText("bla foo", lookup);
+    assert.equal(tokens.find((t) => t.text === "bla")!.phrase![0]!.word, "blafoo");
+    assert.equal(stats.unknown, 0);
+    // and a word with no phrase at all still counts as unknown
+    assert.equal(analyzeText("xyzqwerty auf", lookup).stats.unknown, 1);
   });
 });

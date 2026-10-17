@@ -10,26 +10,50 @@ interface SentenceViewProps {
 }
 
 /** The entries a word of the sentence can be (its candidates, or the parts of a compound). */
-function optionsOf(token: TextToken): { id: number; word: string; pos: string; note?: string }[] {
-  if (token.candidates?.length) {
-    return token.candidates.map((c) => ({
+function optionsOf(token: TextToken): { id: number; word: string; pos: string; note?: string; fromPhrase: boolean }[] {
+  const out: { id: number; word: string; pos: string; note?: string; fromPhrase: boolean }[] = []
+  const seen = new Set<number>()
+  for (const c of token.phrase ?? []) {
+    if (seen.has(c.id)) continue
+    seen.add(c.id)
+    out.push({ id: c.id, word: c.word, pos: c.pos, note: `form of ${c.word}`, fromPhrase: true })
+  }
+  for (const c of token.candidates ?? []) {
+    if (seen.has(c.id)) continue
+    seen.add(c.id)
+    out.push({
       id: c.id,
       word: c.word,
       pos: c.pos,
       note: c.viaForm ? `form of ${c.word}` : undefined,
-    }))
+      fromPhrase: false,
+    })
   }
-  return (token.compound ?? []).map((p) => ({ id: p.id, word: p.word, pos: p.pos }))
+  if (out.length > 0) return out
+  return (token.compound ?? []).map((p) => ({ id: p.id, word: p.word, pos: p.pos, fromPhrase: false }))
+}
+
+/** The words of a multi-word form whose first word is `first` ("stehe" + "auf"). */
+function phraseWords(tokens: TextToken[], first: number): string[] {
+  const words = [tokens[first]!.text]
+  for (let i = first + 1; i < tokens.length && tokens[i]!.phraseCont === first; i++) {
+    words.push(tokens[i]!.text)
+  }
+  return words
 }
 
 function wordClass(token: TextToken, selected: boolean): string {
   const base =
     'cursor-pointer rounded-sm px-px transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-500'
-  const look = token.candidates?.length
-    ? 'border-b border-violet-400/70 hover:bg-violet-900/30'
-    : token.compound
-      ? 'border-b border-dashed border-amber-400/70 hover:bg-amber-900/30'
-      : 'text-slate-500 hover:bg-slate-800/60'
+  const look = token.phrase?.length
+    ? 'border-b-2 border-violet-400 bg-violet-900/20 hover:bg-violet-900/40'
+    : token.phraseCont !== undefined
+      ? 'border-b-2 border-violet-400/60 hover:bg-violet-900/30'
+      : token.candidates?.length
+        ? 'border-b border-violet-400/70 hover:bg-violet-900/30'
+        : token.compound
+          ? 'border-b border-dashed border-amber-400/70 hover:bg-amber-900/30'
+          : 'text-slate-500 hover:bg-slate-800/60'
   return `${base} ${look} ${selected ? 'bg-violet-900/40' : ''}`
 }
 
@@ -47,9 +71,11 @@ export function SentenceView({ analysis, onOpenEntry, onSelectTerm }: SentenceVi
   const token = selected !== null ? tokens[selected] : undefined
   const options = token ? optionsOf(token) : []
   const current = options[Math.min(choice, options.length - 1)]
+  // continuation words ("auf" in "stehe auf") select their phrase's first word
+  const firstOf = (i: number) => tokens[i]!.phraseCont ?? i
 
   const select = (index: number) => {
-    setSelected(index)
+    setSelected(firstOf(index))
     setChoice(0)
   }
 
@@ -70,8 +96,8 @@ export function SentenceView({ analysis, onOpenEntry, onSelectTerm }: SentenceVi
                 key={i}
                 type="button"
                 onClick={() => select(i)}
-                aria-pressed={selected === i}
-                className={wordClass(t, selected === i)}
+                aria-pressed={selected === firstOf(i)}
+                className={wordClass(t, selected === firstOf(i))}
               >
                 {t.text}
               </button>
@@ -115,14 +141,15 @@ export function SentenceView({ analysis, onOpenEntry, onSelectTerm }: SentenceVi
             </div>
           )}
 
-          {!token.candidates?.length && token.compound && (
+          {!token.candidates?.length && !token.phrase?.length && token.compound && (
             <p className="mb-3 text-sm text-amber-300">
               Compound word: {token.compound.map((p) => p.word).join(' + ')}
             </p>
           )}
           {current?.note && (
             <p className="mb-3 text-sm text-slate-400">
-              “{token.text}” is a {current.note}
+              “{current.fromPhrase ? phraseWords(tokens, selected!).join(' ') : token.text}” is a{' '}
+              {current.note}
             </p>
           )}
 

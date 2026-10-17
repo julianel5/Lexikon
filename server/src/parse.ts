@@ -9,8 +9,12 @@
 export const MAX_TEXT_LENGTH = 5000;
 /** Unknown words are decomposed at most this many times per request (each costs a few lookups). */
 const MAX_DECOMPOSITIONS = 150;
+/** Multi-word forms ("stehe auf" -> aufstehen) cost at most this many extra lookups. */
+const MAX_PHRASE_LOOKUPS = 200;
 const MAX_CANDIDATES = 5;
 const MIN_PART_LENGTH = 3;
+/** Longest multi-word form to try, in words ("ruf mich an" would be 3, if it were indexed). */
+const MAX_PHRASE_WORDS = 3;
 
 export interface Candidate {
   id: number;
@@ -60,6 +64,14 @@ export interface Token {
   word: boolean;
   candidates?: Candidate[];
   compound?: Part[];
+  /**
+   * Candidates from a multi-word form whose first word is this token ("stehe auf" -> aufstehen).
+   * Only set when the phrase is also in the dictionary; the single-word candidates stay on
+   * their own tokens so both readings are always visible.
+   */
+  phrase?: Candidate[];
+  /** index of the first token of a multi-word form this token continues ("stehe" + "auf") */
+  phraseCont?: number;
 }
 
 export interface Analysis {
@@ -238,13 +250,16 @@ export function analyzeText(text: string, lookup: Lookup): Analysis {
   const compounds = new Map<string, Part[] | null>();
   const headCache = new Map<string, Omit<Candidate, "viaForm"> | null>();
   const seen = new Set<string>();
+  const wordIndices: number[] = [];
   let decompositions = 0;
   let words = 0;
   let unknown = 0;
 
-  for (const token of tokens) {
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!;
     if (!token.word) continue;
     words++;
+    wordIndices.push(i);
     const key = token.text.normalize("NFC").toLowerCase().replace(/’/g, "'");
     seen.add(key);
 
@@ -280,6 +295,55 @@ export function analyzeText(text: string, lookup: Lookup): Analysis {
     const parts = compounds.get(key);
     if (parts) token.compound = parts;
     else unknown++;
+  }
+
+  // Multi-word forms ("stehe auf" -> aufstehen): join adjacent words into a phrase and look it
+  // up. The phrase candidates go on the first word; the following words only record that they
+  // continue it, so every word keeps its own single-word reading too.
+  let phraseLookups = 0;
+  const consumed = new Set<number>();
+  const phraseCache = new Map<string, Candidate[]>();
+  for (let w = 0; w < wordIndices.length && phraseLookups < MAX_PHRASE_LOOKUPS; w++) {
+    const first = wordIndices[w]!;
+    if (consumed.has(first)) continue;
+    // Try the longest phrase first so "ruf mich an" wins over a shorter "ruf mich".
+    for (let n = Math.min(MAX_PHRASE_WORDS, wordIndices.length - w); n >= 2; n--) {
+      const parts = wordIndices.slice(w, w + n);
+      // only words separated by whitespace form a phrase; punctuation breaks it
+      let contiguous = true;
+      for (let p = 0; p + 1 < parts.length; p++) {
+        const between = tokens.slice(parts[p]! + 1, parts[p + 1]!);
+        if (!between.every((t) => !t.word && /^\s+$/u.test(t.text))) {
+          contiguous = false;
+          break;
+        }
+      }
+      if (!contiguous) break;
+      const surface = parts.map((i) => tokens[i]!.text).join(" ");
+      const phrase = surface.normalize("NFC").toLowerCase().replace(/’/g, "'");
+      phraseLookups++;
+      // The ranking depends on capitalisation, so it is cached per surface form, as for one word
+      const sentenceStart = startsSentence(text, tokens[first]!.start);
+      const phraseKey = `${sentenceStart ? 1 : 0}|${surface}`;
+      let ranked = phraseCache.get(phraseKey);
+      if (ranked === undefined) {
+        // A phrase key is never a headword ("stehe auf" is only a form of aufstehen), so rank
+        // on the first word: the phrase inherits its capitalisation and sentence position.
+        ranked = rankCandidates(lookup.candidates(phrase), surface, sentenceStart);
+        phraseCache.set(phraseKey, ranked);
+      }
+      if (ranked.length === 0) continue;
+      tokens[first]!.phrase = ranked;
+      for (let k = 0; k < n; k++) {
+        const index = wordIndices[w + k]!;
+        const tok = tokens[index]!;
+        // a word that is unknown alone but resolves as part of the phrase is found in context
+        if (!tok.candidates?.length && !tok.compound?.length) unknown--;
+        if (k > 0) tok.phraseCont = first;
+        consumed.add(index);
+      }
+      break;
+    }
   }
 
   return { tokens, stats: { words, unique: seen.size, unknown } };
