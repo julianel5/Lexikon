@@ -30,21 +30,10 @@
       content="Lexikon: a red book with an Eszett, and the text German to English dictionary"
     />
     <meta name="twitter:card" content="summary_large_image" />
-    <script>
-      // Apply the saved (or system) theme before first paint to avoid a flash.
-      try {
-        var saved = localStorage.getItem('lexikon-theme')
-        var theme =
-          saved === 'light' || saved === 'dark'
-            ? saved
-            : window.matchMedia('(prefers-color-scheme: light)').matches
-              ? 'light'
-              : 'dark'
-        document.documentElement.setAttribute('data-theme', theme)
-      } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'dark')
-      }
-    </script>
+    <!-- Blocking on purpose: sets the theme before first paint, so the site
+         never flashes the wrong theme. It lives in public/theme.js because the
+         CSP only allows same-origin scripts (script-src 'self'). -->
+    <script src="/theme.js"></script>
   </head>
   <body>
     <div id="root"></div>
