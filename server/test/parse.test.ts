@@ -320,3 +320,50 @@ describe("analyzeText multi-word forms", () => {
     assert.equal(analyzeText("xyzqwerty auf", lookup).stats.unknown, 1);
   });
 });
+
+describe("analyzeText multi-word forms: the particle versus a preposition", () => {
+  const lookup = fakeLookup();
+  const phraseOf = (text: string, word: string) =>
+    analyzeText(text, lookup).tokens.find((t) => t.text === word)!.phrase;
+
+  it("does not join a preposition with its object (stehe auf dem Tisch)", () => {
+    assert.equal(phraseOf("Ich stehe auf dem Tisch.", "stehe"), undefined);
+    const { tokens } = analyzeText("Ich stehe auf dem Tisch.", lookup);
+    // each word keeps its own reading, and "auf" is not marked as a continuation
+    assert.equal(tokens.find((t) => t.text === "stehe")!.candidates![0]!.word, "stehen");
+    assert.equal(tokens.find((t) => t.text === "auf")!.phraseCont, undefined);
+  });
+
+  it("does not join before a noun (kommt mit Freunden)", () => {
+    assert.equal(phraseOf("Sie kommt mit Freunden.", "kommt"), undefined);
+  });
+
+  it("does not join before a pronoun object (kommt mit uns)", () => {
+    assert.equal(phraseOf("Sie kommt mit uns.", "kommt"), undefined);
+  });
+
+  it("is not case sensitive for the article (Dem at the start)", () => {
+    assert.equal(phraseOf("Steht auf Dem Tisch", "Steht"), undefined);
+  });
+
+  it("still joins when the clause goes on (und, a comma, the end)", () => {
+    assert.equal(phraseOf("Ich stehe auf und gehe.", "stehe")![0]!.word, "aufstehen");
+    assert.equal(phraseOf("Ich stehe auf, weil es spät ist.", "stehe")![0]!.word, "aufstehen");
+    assert.equal(phraseOf("Ich stehe auf", "stehe")![0]!.word, "aufstehen");
+  });
+
+  it("still joins before a lower-case word that is not an object (a verb)", () => {
+    assert.equal(phraseOf("Er steht auf gehen", "steht")![0]!.word, "aufstehen");
+  });
+
+  it("finds the verb when a comma or a full stop follows the particle", () => {
+    // the 3-word window "stehe auf weil" crosses the comma; the 2-word "stehe auf" still counts
+    assert.equal(phraseOf("Ich stehe auf, weil es spät ist.", "stehe")![0]!.word, "aufstehen");
+    assert.equal(phraseOf("Ich stehe auf. Dann gehe ich.", "stehe")![0]!.word, "aufstehen");
+    assert.equal(phraseOf("Ich stehe auf; ich gehe.", "stehe")![0]!.word, "aufstehen");
+  });
+
+  it("treats a line break as the end of the clause", () => {
+    assert.equal(phraseOf("Ich stehe auf\nEr geht", "stehe")![0]!.word, "aufstehen");
+  });
+});

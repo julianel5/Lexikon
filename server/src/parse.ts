@@ -234,6 +234,45 @@ export function decompose(
   return null;
 }
 
+// A separable verb's particle ends its clause ("Ich stehe auf.", "Ich stehe auf und gehe."). When
+// the next word is an article, a pronoun object or a noun, the same word is a preposition with
+// its object instead: "stehe auf dem Tisch", "komme mit Freunden", "kommt mit uns". These words
+// start such an object (nouns are told apart by their capital letter).
+const PREPOSITION_OBJECT_STARTERS = new Set([
+  // articles
+  "der", "die", "das", "den", "dem", "des",
+  "ein", "eine", "einen", "einem", "einer", "eines",
+  "kein", "keine", "keinen", "keinem", "keiner", "keines",
+  // possessives
+  "mein", "meine", "meinen", "meinem", "meiner", "meines",
+  "dein", "deine", "deinen", "deinem", "deiner", "deines",
+  "sein", "seine", "seinen", "seinem", "seiner", "seines",
+  "ihr", "ihre", "ihren", "ihrem", "ihrer", "ihres",
+  "unser", "unsere", "unseren", "unserem", "unserer", "unseres",
+  "euer", "eure", "euren", "eurem", "eurer", "eures",
+  // demonstratives and quantifiers
+  "dieser", "diese", "dieses", "diesen", "diesem",
+  "jeder", "jede", "jedes", "jeden", "jedem",
+  "alle", "allen", "aller", "alles", "viel", "viele", "vielen", "etwas", "nichts", "jemandem",
+  // pronouns that are the object of a preposition
+  "mich", "mir", "dich", "dir", "ihn", "ihm", "uns", "euch", "ihnen", "sich",
+]);
+
+/** Spaces and tabs only: a line break is a boundary, not the middle of a clause. */
+const SAME_LINE_GAP_RE = /^[ \t\u00a0]+$/u;
+
+/**
+ * True when the word right after the token `last` (on the same line) starts the object of a
+ * preposition, so `last` is a preposition and not the particle of a separable verb.
+ */
+function startsPrepositionObject(tokens: Token[], last: number): boolean {
+  const gap = tokens[last + 1];
+  const next = tokens[last + 2];
+  if (!gap || !next || gap.word || !next.word || !SAME_LINE_GAP_RE.test(gap.text)) return false;
+  const word = next.text.normalize("NFC");
+  return PREPOSITION_OBJECT_STARTERS.has(word.toLowerCase()) || /^\p{Lu}/u.test(word);
+}
+
 /** The first letter after one of . ! ? (or at the start of the text) begins a sentence. */
 function startsSentence(text: string, start: number): boolean {
   for (let i = start - 1; i >= 0; i--) {
@@ -318,7 +357,9 @@ export function analyzeText(text: string, lookup: Lookup): Analysis {
           break;
         }
       }
-      if (!contiguous) break;
+      // a window that crosses punctuation ("stehe auf, weil") does not rule out a shorter one
+      // inside it ("stehe auf")
+      if (!contiguous) continue;
       const surface = parts.map((i) => tokens[i]!.text).join(" ");
       const phrase = surface.normalize("NFC").toLowerCase().replace(/’/g, "'");
       phraseLookups++;
@@ -333,6 +374,8 @@ export function analyzeText(text: string, lookup: Lookup): Analysis {
         phraseCache.set(phraseKey, ranked);
       }
       if (ranked.length === 0) continue;
+      // "stehe auf dem Tisch": here "auf" is a preposition, the verb is just "stehen"
+      if (startsPrepositionObject(tokens, parts[parts.length - 1]!)) continue;
       tokens[first]!.phrase = ranked;
       for (let k = 0; k < n; k++) {
         const index = wordIndices[w + k]!;

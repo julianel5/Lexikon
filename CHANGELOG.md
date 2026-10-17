@@ -16,6 +16,12 @@ behaviour).
 - Multi-word forms of separable verbs in the sentence view: *stehe auf* resolves to *aufstehen*, *komme
   mit* to *mitkommen*. It only works when the two parts are next to each other (#64).
 
+### Fixed
+
+- Separable verbs no longer join a preposition with its object (*stehe auf dem Tisch*, *kommt mit
+  Freunden*, *fährt mit mir* are not *aufstehen*, *mitkommen*, *mitfahren*), and are found again when a comma
+  or a full stop follows the particle (*Ich stehe auf, weil…*).
+
 ## [0.2.0] - 2026-10-17
 
 Word frequencies, a site of its own and a cleaner interface.
