@@ -14,6 +14,12 @@ anything.
 |---|---|---|---|
 | [Wiktionary](https://de.wiktionary.org/) (German edition), extracted by [wiktextract](https://github.com/tatuylonen/wiktextract) and published by [kaikki.org](https://kaikki.org/) | Headwords, inflected forms, senses, examples, IPA and word relations | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) and [GFDL](https://www.gnu.org/licenses/fdl-1.3.html) (dual-licensed by Wikimedia) | Attribution is required and derived data must be shared under the same licence. |
 
+> **Pronunciation enrichment.** `ingest/extract_ipa.py` builds a small `(word, pos) → IPA` map from
+> the German Wiktionary edition published by kaikki.org ([kaikki.org/dewiktionary/Deutsch](https://kaikki.org/dewiktionary/Deutsch/index.html)).
+> The optional `ingest.py --ipa-db` step uses it to fill entries whose main dump has no pronunciation
+> (some pages carry only an audio file). This is the same CC BY-SA 4.0 + GFDL Wiktionary content as
+> above, so nothing about the terms changes.
+
 What this means for Lexikon:
 
 - **Attribution.** The website credits Wiktionary in its footer and links to the licence.

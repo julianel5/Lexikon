@@ -20,6 +20,9 @@ behaviour).
   first outside contribution (#63).
 - Multi-word forms of separable verbs in the sentence view: *stehe auf* resolves to *aufstehen*, *komme
   mit* to *mitkommen*. It only works when the two parts are next to each other (#64).
+- Entries whose pronunciation is missing from the main dump get an IPA from the German Wiktionary:
+  a new optional `--ipa-db` step (`ingest/extract_ipa.py`) fills them, so words like *schleißen*
+  now show a phonetic transcription (~16,000 entries, #73).
 
 ### Fixed
 

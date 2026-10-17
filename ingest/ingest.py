@@ -9,6 +9,7 @@ read-only SQLite database.
 Usage:
     python ingest.py data/raw/kaikki.org-dictionary-German.jsonl -o data/dictionary.db
     python ingest.py <dump> -o data/dictionary.db --freq data/raw/deu_web-words.txt   # optional
+    python ingest.py <dump> -o data/dictionary.db --ipa-db data/ipa_de.db             # optional
 
 Schema:
     entries(id INTEGER PRIMARY KEY, word TEXT, pos TEXT, gender TEXT, data TEXT /* JSON */,
@@ -609,6 +610,27 @@ def _build_record(entry: dict, word: str, pos: str, senses: list[dict]) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Pronunciation enrichment (optional)
+# --------------------------------------------------------------------------- #
+def load_ipa_map(path: Path) -> dict[tuple[str, str], list[str]]:
+    """Read a ``(word, pos) -> [ipa, ...]`` map built by ``extract_ipa.py``.
+
+    Used to fill entries whose source dump has no pronunciation (e.g. "schleißen",
+    which carries only audio on en.wiktionary). Rows are ordered so the list is
+    deterministic. The map is opened read-only: the build never writes to it.
+    """
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute("SELECT word, pos, ipa FROM ipa ORDER BY word, pos, ipa")
+        ipa_map: dict[tuple[str, str], list[str]] = {}
+        for word, pos, ipa in rows:
+            ipa_map.setdefault((word, pos), []).append(ipa)
+    finally:
+        conn.close()
+    return ipa_map
+
+
+# --------------------------------------------------------------------------- #
 # Word frequencies (optional)
 # --------------------------------------------------------------------------- #
 # Letters only, optionally joined by hyphens or apostrophes: drops punctuation, numbers, URLs.
@@ -803,6 +825,7 @@ def run(
     output_path: Path,
     batch_size: int,
     frequencies: dict[str, int] | None = None,
+    ipa_map: dict[tuple[str, str], list[str]] | None = None,
 ) -> dict:
     file_size = input_path.stat().st_size
     conn = _connect(output_path)
@@ -818,6 +841,7 @@ def run(
         "keys": 0,
         "redirects_resolved": 0,
         "redirects_unresolved": 0,
+        "ipa_filled": 0,
     }
     # (inflected form, lemma word, lemma pos) -> None; dict = ordered de-dup set
     redirects: dict[tuple[str, str, str], None] = {}
@@ -893,6 +917,11 @@ def run(
 
             next_id += 1
             record = _build_record(entry, word, pos, senses)
+            if ipa_map is not None and "sounds" not in record:
+                ipas = ipa_map.get((word, pos))
+                if ipas:
+                    record["sounds"] = [{"ipa": ipa} for ipa in ipas]
+                    stats["ipa_filled"] += 1
             entry_rows.append(
                 (
                     next_id,
@@ -997,6 +1026,15 @@ def _frequency_line(stats: dict) -> str:
     )
 
 
+def _ipa_line(stats: dict) -> str:
+    if not stats.get("ipa_filled"):
+        return ""
+    return (
+        f"  ipa filled   : {stats['ipa_filled']:,} entries given a pronunciation "
+        f"from the map\n"
+    )
+
+
 def report(stats: dict, output_path: Path) -> None:
     redirects = (
         f"{stats['form_pages']:,} redirected "
@@ -1015,6 +1053,7 @@ def report(stats: dict, output_path: Path) -> None:
         f"  form pages   : {redirects}\n"
         f"  skipped      : {skipped}\n"
         f"{_frequency_line(stats)}"
+        f"{_ipa_line(stats)}"
         f"  integrity    : {stats['integrity']}\n"
         f"  output       : {output_path} ({stats['db_size'] / 1e6:,.1f} MB)"
     )
@@ -1055,6 +1094,13 @@ def main(argv: list[str] | None = None) -> None:
         help="word frequency list: a Leipzig '*-words.txt' or a Yomitan frequency .zip "
         "(optional; adds entries.freq and entries.freq_rank)",
     )
+    parser.add_argument(
+        "--ipa-db",
+        type=Path,
+        default=None,
+        help="optional (word,pos)->IPA map built by extract_ipa.py from the de.wiktionary "
+        "dump; fills entries whose source dump has no pronunciation",
+    )
     parser.add_argument("--no-verify", action="store_true", help="skip post-build lookups")
     args = parser.parse_args(argv)
 
@@ -1064,6 +1110,8 @@ def main(argv: list[str] | None = None) -> None:
         parser.error("--batch must be >= 1")
     if args.freq is not None and not args.freq.is_file():
         parser.error(f"frequency list not found: {args.freq}")
+    if args.ipa_db is not None and not args.ipa_db.is_file():
+        parser.error(f"IPA map not found: {args.ipa_db}")
 
     print(f"Reading  {args.input}")
     print(f"Writing  {args.output}")
@@ -1074,7 +1122,14 @@ def main(argv: list[str] | None = None) -> None:
             frequencies = load_frequencies(args.freq)
         except (ValueError, OSError, zipfile.BadZipFile) as error:
             parser.error(str(error))
-    stats = run(args.input, args.output, args.batch, frequencies)
+    ipa_map = None
+    if args.ipa_db is not None:
+        print(f"Reading  {args.ipa_db} (IPA map)")
+        try:
+            ipa_map = load_ipa_map(args.ipa_db)
+        except (ValueError, OSError, sqlite3.Error) as error:
+            parser.error(str(error))
+    stats = run(args.input, args.output, args.batch, frequencies, ipa_map)
     report(stats, args.output)
     if not args.no_verify:
         verify(args.output)
