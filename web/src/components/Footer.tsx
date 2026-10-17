@@ -1,6 +1,10 @@
 import { REPORT_PROBLEM_URL, REPO_URL } from '../lib/links'
 
 const KOFI_URL = 'https://ko-fi.com/muzzijoaquin'
+const JULIANEL_URL = 'https://github.com/julianel5'
+const FRODOUWU_URL = 'https://github.com/joaquinmuzzi'
+const JITEN_URL = 'https://jiten.moe'
+const SIRUSH_URL = 'https://github.com/Sirush'
 
 const textLink = 'underline hover:text-violet-400'
 
@@ -14,8 +18,24 @@ export function Footer() {
       <div className="mx-auto flex w-full max-w-2xl items-start justify-between gap-4 px-4 py-8">
         <div className="min-w-0 space-y-2 text-xs text-slate-500">
           <p>
-            Site made by: <span className="text-slate-300">Julianel</span> and{' '}
-            <span className="text-slate-300">Frodouwu</span>
+            Site made by:{' '}
+            <a
+              href={JULIANEL_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-300 hover:text-violet-400 hover:underline"
+            >
+              Julianel
+            </a>{' '}
+            and{' '}
+            <a
+              href={FRODOUWU_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-300 hover:text-violet-400 hover:underline"
+            >
+              Frodouwu
+            </a>
           </p>
           <p>
             Dictionary data from{' '}
@@ -62,6 +82,27 @@ export function Footer() {
               className={textLink}
             >
               Tell us on GitHub
+            </a>
+            .
+          </p>
+          <p>
+            Inspired by{' '}
+            <a
+              href={JITEN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={textLink}
+            >
+              Jiten
+            </a>
+            , created by{' '}
+            <a
+              href={SIRUSH_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={textLink}
+            >
+              Sirush
             </a>
             .
           </p>

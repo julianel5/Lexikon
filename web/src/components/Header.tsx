@@ -20,8 +20,10 @@ export function Header({ onHome, onSearch }: HeaderProps) {
               e.preventDefault()
               onHome()
             }}
-            className="inline-flex min-h-10 items-center rounded-lg text-white no-underline transition-colors hover:text-violet-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+            className="inline-flex min-h-10 items-center gap-2.5 rounded-lg text-white no-underline transition-colors hover:text-violet-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
           >
+            {/* decorative: the name next to it is the accessible label */}
+            <img src="/favicon.svg" alt="" width={32} height={32} className="h-8 w-8" />
             Lexikon
           </a>
         </h1>
