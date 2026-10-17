@@ -8,6 +8,11 @@ behaviour).
 
 ## [Unreleased]
 
+### Security
+
+- The web app sends `Strict-Transport-Security`, `X-Content-Type-Options`, `Referrer-Policy`,
+  `X-Frame-Options` and `Permissions-Policy` headers.
+
 ### Added
 
 - A web app manifest and install icons: Lexikon can be installed on a phone or a computer ("Add to
