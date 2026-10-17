@@ -8,9 +8,11 @@ read-only SQLite database.
 
 Usage:
     python ingest.py data/raw/kaikki.org-dictionary-German.jsonl -o data/dictionary.db
+    python ingest.py <dump> -o data/dictionary.db --freq data/raw/deu_web-words.txt   # optional
 
 Schema:
-    entries(id INTEGER PRIMARY KEY, word TEXT, pos TEXT, gender TEXT, data TEXT /* JSON */)
+    entries(id INTEGER PRIMARY KEY, word TEXT, pos TEXT, gender TEXT, data TEXT /* JSON */,
+            freq INTEGER, freq_rank INTEGER)
     search_keys(key TEXT, kind INTEGER, entry_id INTEGER, exact_form INTEGER,
                 PRIMARY KEY (kind, key, entry_id)) WITHOUT ROWID
 
@@ -37,8 +39,13 @@ Schema:
                     stored as entries, they only contribute redirect keys to
                     their lemma.
 
-    autocomplete(kind, key, entry_id, word, pos, weight)  -- headword keys only,
+    autocomplete(kind, key, entry_id, word, pos, weight, freq)  -- headword keys only,
         used for prefix suggestions (ranked by ``weight`` = entry size).
+
+    freq / freq_rank (only with --freq, otherwise 0): how often the entry's headword and
+        inflected forms occur in a word list of the Leipzig Corpora Collection (see
+        THIRD_PARTY_NOTICES.md), and the entry's rank by that count (1 = most frequent,
+        0 = not in the list).
 
 Notes:
   * The database is built with journal_mode=OFF / synchronous=OFF for speed.
@@ -58,6 +65,8 @@ import sqlite3
 import sys
 import time
 import unicodedata
+import zipfile
+from collections.abc import Iterable
 from pathlib import Path
 
 try:
@@ -111,7 +120,9 @@ CREATE TABLE IF NOT EXISTS entries (
     word   TEXT    NOT NULL,
     pos    TEXT    NOT NULL,
     gender TEXT,
-    data   TEXT    NOT NULL
+    data   TEXT    NOT NULL,
+    freq      INTEGER NOT NULL DEFAULT 0,
+    freq_rank INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS search_keys (
     key        TEXT    NOT NULL,
@@ -598,6 +609,123 @@ def _build_record(entry: dict, word: str, pos: str, senses: list[dict]) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Word frequencies (optional)
+# --------------------------------------------------------------------------- #
+# Letters only, optionally joined by hyphens or apostrophes: drops punctuation, numbers, URLs.
+_FREQ_TOKEN_RE = re.compile(r"[^\W\d_]+(?:['\u2019-][^\W\d_]+)*")
+_YOMITAN_COUNT_RE = re.compile(r"\((\d+)\)")
+
+
+def _add_count(counts: dict[str, int], word: str, count: int) -> None:
+    word = unicodedata.normalize("NFC", word)
+    if count > 0 and _FREQ_TOKEN_RE.fullmatch(word):
+        counts[word] = counts.get(word, 0) + count
+
+
+def load_frequencies(path: Path) -> dict[str, int]:
+    """Read a word list into {word: occurrences}. Case is kept: German nouns are capitalised.
+
+    Two formats are understood:
+      * a Leipzig Corpora Collection ``*-words.txt``: tab-separated ``id, word, count`` lines;
+      * a Yomitan frequency dictionary (``.zip``, e.g. from leipzig-to-yomitan): the count is
+        read from the ``displayValue`` of its ``term_meta_bank_*.json`` rows ("12 (3456)").
+    """
+    counts: dict[str, int] = {}
+    if path.suffix.lower() == ".zip":
+        with zipfile.ZipFile(path) as archive:
+            banks = sorted(n for n in archive.namelist() if n.startswith("term_meta_bank"))
+            for name in banks:
+                for row in json.loads(archive.read(name)):
+                    try:
+                        word, kind, meta = row[0], row[1], row[2]
+                        match = _YOMITAN_COUNT_RE.search(meta["displayValue"])
+                    except (IndexError, KeyError, TypeError):
+                        continue
+                    if kind == "freq" and match:
+                        _add_count(counts, word, int(match.group(1)))
+    else:
+        with path.open(encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                parts = line.rstrip("\r\n").split("\t")
+                if len(parts) >= 3 and parts[2].isdigit():
+                    _add_count(counts, parts[1], int(parts[2]))
+    if not counts:
+        raise ValueError(
+            f"no word counts found in {path}: expected a Leipzig '*-words.txt' "
+            "(id, word, count) or a Yomitan frequency zip that lists occurrence counts"
+        )
+    return counts
+
+
+def surface_variants(form: str) -> list[str]:
+    """Spellings under which a form can appear in running text.
+
+    A lower-case word also starts sentences with a capital ("Ich"); a capitalised one (a
+    noun) is left alone, as its lower-case spelling is a different, rare token.
+    """
+    form = unicodedata.normalize("NFC", form)
+    variants = [form]
+    if form[:1].islower():
+        variants.append(form[:1].upper() + form[1:])
+    return variants
+
+
+def compute_frequencies(
+    entries: Iterable[tuple[int, Iterable[str], Iterable[str]]], counts: dict[str, int]
+) -> dict[int, int]:
+    """Occurrences per entry, from the word list.
+
+    Each entry is ``(id, owned, listed)``. *Owned* spellings are the ones Wiktionary has a page
+    for: the headword and the inflected-form pages that point to the entry ("Häuser" -> Haus).
+    *Listed* spellings are only mentioned in the entry's table of forms.
+
+    A spelling is counted for the entries that own it. Only when nobody owns it is it split
+    evenly between the entries that list it. This matters because tables list more than the
+    entry's own forms: a personal pronoun lists the whole paradigm ("mir" under "ich"), and
+    the entries of names list their articles ("die", "der"). Those spellings belong to the
+    pages of their own ("mir", "der"), not to every entry that mentions them.
+    """
+    owners: dict[str, set[int]] = {}
+    listers: dict[str, set[int]] = {}
+    for entry_id, owned, listed in entries:
+        for form in owned:
+            for variant in surface_variants(form):
+                if variant in counts:
+                    owners.setdefault(variant, set()).add(entry_id)
+        for form in listed:
+            for variant in surface_variants(form):
+                if variant in counts:
+                    listers.setdefault(variant, set()).add(entry_id)
+    totals: dict[int, float] = {}
+    for variant in owners.keys() | listers.keys():
+        receivers = owners.get(variant) or listers[variant]
+        share = counts[variant] / len(receivers)
+        for entry_id in receivers:
+            totals[entry_id] = totals.get(entry_id, 0.0) + share
+    return {entry_id: round(total) for entry_id, total in totals.items() if round(total) > 0}
+
+
+def _apply_frequencies(
+    conn: sqlite3.Connection, counts: dict[str, int], redirect_forms: dict[int, list[str]]
+) -> dict:
+    """Fill entries.freq / freq_rank from the word list; returns a few numbers for the report."""
+
+    def entries():
+        for entry_id, word, data in conn.execute("SELECT id, word, data FROM entries"):
+            owned = [word, *redirect_forms.get(entry_id, ())]
+            listed = [f["form"] for f in json.loads(data).get("forms", [])]
+            yield entry_id, owned, listed
+
+    freqs = compute_frequencies(entries(), counts)
+    ranked = sorted(freqs, key=lambda entry_id: (-freqs[entry_id], entry_id))
+    conn.executemany(
+        "UPDATE entries SET freq = ?, freq_rank = ? WHERE id = ?",
+        ((freqs[entry_id], rank, entry_id) for rank, entry_id in enumerate(ranked, start=1)),
+    )
+    return {"freq_entries": len(ranked), "freq_words": len(counts)}
+
+
+# --------------------------------------------------------------------------- #
 # Pipeline
 # --------------------------------------------------------------------------- #
 AUTOCOMPLETE_SCHEMA = """
@@ -608,6 +736,7 @@ CREATE TABLE autocomplete (
     word     TEXT    NOT NULL,
     pos      TEXT    NOT NULL,
     weight   INTEGER NOT NULL,
+    freq     INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (kind, key, entry_id)
 ) WITHOUT ROWID;
 """
@@ -623,8 +752,8 @@ def _build_autocomplete(conn: sqlite3.Connection) -> None:
     conn.executescript(AUTOCOMPLETE_SCHEMA)
     conn.execute(
         """
-        INSERT INTO autocomplete (kind, key, entry_id, word, pos, weight)
-        SELECT k.kind, k.key, k.entry_id, e.word, e.pos, length(e.data)
+        INSERT INTO autocomplete (kind, key, entry_id, word, pos, weight, freq)
+        SELECT k.kind, k.key, k.entry_id, e.word, e.pos, length(e.data), e.freq
         FROM search_keys k
         JOIN entries e ON e.id = k.entry_id
         WHERE k.exact_form = 1 AND k.kind < 3
@@ -646,7 +775,12 @@ def _connect(output: Path) -> sqlite3.Connection:
     return conn
 
 
-def run(input_path: Path, output_path: Path, batch_size: int) -> dict:
+def run(
+    input_path: Path,
+    output_path: Path,
+    batch_size: int,
+    frequencies: dict[str, int] | None = None,
+) -> dict:
     file_size = input_path.stat().st_size
     conn = _connect(output_path)
 
@@ -667,6 +801,8 @@ def run(input_path: Path, output_path: Path, batch_size: int) -> dict:
     entry_rows: list[tuple] = []
     key_rows: list[tuple] = []
     next_id = 0
+    # lemma id -> inflected forms of redirected pages (only kept when frequencies are used)
+    redirect_forms: dict[int, list[str]] = {}
 
     def flush() -> None:
         nonlocal entry_rows, key_rows
@@ -775,6 +911,8 @@ def run(input_path: Path, output_path: Path, batch_size: int) -> dict:
             stats["redirects_unresolved"] += 1
             continue
         lemma_id = row[0]
+        if frequencies is not None:
+            redirect_forms.setdefault(lemma_id, []).append(form)
         for kind, key in iter_keys(form):
             key_rows.append((key, kind, lemma_id, 0))
         stats["redirects_resolved"] += 1
@@ -783,6 +921,10 @@ def run(input_path: Path, output_path: Path, batch_size: int) -> dict:
             conn.commit()
     flush()
     conn.commit()
+
+    if frequencies is not None:
+        stats.update(_apply_frequencies(conn, frequencies, redirect_forms))
+        conn.commit()
 
     _build_autocomplete(conn)
     conn.commit()
@@ -822,6 +964,16 @@ def verify(output_path: Path) -> None:
     conn.close()
 
 
+def _frequency_line(stats: dict) -> str:
+    if "freq_entries" not in stats:
+        return ""
+    share = stats["freq_entries"] / max(stats["entries"], 1)
+    return (
+        f"  frequencies  : {stats['freq_entries']:,} of {stats['entries']:,} entries "
+        f"({share:.0%}) found in a list of {stats['freq_words']:,} words\n"
+    )
+
+
 def report(stats: dict, output_path: Path) -> None:
     redirects = (
         f"{stats['form_pages']:,} redirected "
@@ -839,6 +991,7 @@ def report(stats: dict, output_path: Path) -> None:
         f"  search_keys  : {stats['keys']:,}\n"
         f"  form pages   : {redirects}\n"
         f"  skipped      : {skipped}\n"
+        f"{_frequency_line(stats)}"
         f"  integrity    : {stats['integrity']}\n"
         f"  output       : {output_path} ({stats['db_size'] / 1e6:,.1f} MB)"
     )
@@ -872,6 +1025,13 @@ def main(argv: list[str] | None = None) -> None:
         default=DEFAULT_BATCH,
         help=f"rows per insert transaction (default: {DEFAULT_BATCH})",
     )
+    parser.add_argument(
+        "--freq",
+        type=Path,
+        default=None,
+        help="word frequency list: a Leipzig '*-words.txt' or a Yomitan frequency .zip "
+        "(optional; adds entries.freq and entries.freq_rank)",
+    )
     parser.add_argument("--no-verify", action="store_true", help="skip post-build lookups")
     args = parser.parse_args(argv)
 
@@ -879,10 +1039,19 @@ def main(argv: list[str] | None = None) -> None:
         parser.error(f"input file not found: {args.input}")
     if args.batch < 1:
         parser.error("--batch must be >= 1")
+    if args.freq is not None and not args.freq.is_file():
+        parser.error(f"frequency list not found: {args.freq}")
 
     print(f"Reading  {args.input}")
     print(f"Writing  {args.output}")
-    stats = run(args.input, args.output, args.batch)
+    frequencies = None
+    if args.freq is not None:
+        print(f"Reading  {args.freq} (word frequencies)")
+        try:
+            frequencies = load_frequencies(args.freq)
+        except (ValueError, OSError, zipfile.BadZipFile) as error:
+            parser.error(str(error))
+    stats = run(args.input, args.output, args.batch, frequencies)
     report(stats, args.output)
     if not args.no_verify:
         verify(args.output)

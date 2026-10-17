@@ -8,6 +8,13 @@ behaviour).
 
 ## [Unreleased]
 
+### Added
+
+- Word frequencies in the ingest: `--freq` reads a Leipzig Corpora Collection word list and stores,
+  per entry, how often its headword and inflected forms occur (`entries.freq`, `entries.freq_rank`,
+  and `autocomplete.freq`). It is optional and nothing uses the numbers yet: ranking and the
+  interface follow in later changes.
+
 ## [0.1.0] - 2026-10-16
 
 First public version.

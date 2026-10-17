@@ -91,7 +91,23 @@ Ingest options:
 | `input` | path to the kaikki JSONL dump (positional) | — |
 | `-o, --output` | output SQLite path | `data/dictionary.db` |
 | `-b, --batch` | rows per insert transaction | `5000` |
+| `--freq` | word frequency list (a Leipzig `*-words.txt` or a Yomitan frequency `.zip`), see below | none |
 | `--no-verify` | skip post-build sample lookups | off |
+
+**Word frequencies (optional).** With `--freq` the ingest adds up, for every entry, how often its
+headword and inflected forms occur in a word list of the
+[Leipzig Corpora Collection](https://wortschatz.uni-leipzig.de/en/download) (CC BY, see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)) and stores it in `entries.freq`, with the rank
+in `entries.freq_rank` (1 = most frequent, 0 = not in the list). Put the list in `data/raw/`
+(git-ignored) and run:
+
+```bash
+python ingest/ingest.py data/raw/kaikki.org-dictionary-German.jsonl -o data/dictionary.db   --freq data/raw/deu_web_2024_1M-words.txt
+```
+
+A spelling is counted for the entries Wiktionary has a page for (the headword, or an inflected-form
+page such as *Häuser* → Haus). Only a spelling that has no page is split between the entries that
+list it in their table of forms. Without `--freq` both columns are `0` and nothing else changes.
 
 ### 2. Run the API
 
@@ -297,7 +313,9 @@ CREATE TABLE entries (
   word   TEXT NOT NULL,
   pos    TEXT NOT NULL,
   gender TEXT,
-  data   TEXT NOT NULL            -- JSON blob: forms, senses, IPA, relations…
+  data   TEXT NOT NULL,           -- JSON blob: forms, senses, IPA, relations…
+  freq      INTEGER NOT NULL DEFAULT 0,  -- occurrences in the frequency list (0 without --freq)
+  freq_rank INTEGER NOT NULL DEFAULT 0   -- 1 = most frequent entry, 0 = not in the list
 );
 
 CREATE TABLE search_keys (
@@ -319,6 +337,7 @@ CREATE TABLE autocomplete (
   word     TEXT    NOT NULL,
   pos      TEXT    NOT NULL,
   weight   INTEGER NOT NULL,      -- size of the entry JSON, a popularity proxy
+  freq     INTEGER NOT NULL DEFAULT 0,  -- copy of entries.freq
   PRIMARY KEY (kind, key, entry_id)
 ) WITHOUT ROWID;
 ```
