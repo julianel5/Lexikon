@@ -24,6 +24,23 @@ What this means for Lexikon:
 - **Not in this repository.** The dump (`data/raw/`) and the built database (`data/*.db`) are
   git-ignored: they are regenerated from the original source, never committed.
 
+## Word frequency data
+
+| Source | Used for | Licence | Notes |
+|---|---|---|---|
+| [Leipzig Corpora Collection](https://wortschatz.uni-leipzig.de/en/download) (Wortschatz Leipzig: Universität Leipzig, Sächsische Akademie der Wissenschaften zu Leipzig, InfAI), German web corpus, revision 2024.08.31 | How often each word occurs, to rank ambiguous words and to mark common ones | [CC BY](https://creativecommons.org/licenses/by/4.0/) ("the text corpora offered for download", see the project's [Terms of Usage](https://wortschatz.uni-leipzig.de/en/usage)) | Attribution is required and changes must be indicated. |
+
+What this means for Lexikon:
+
+- **Attribution.** Word frequencies come from the Leipzig Corpora Collection (Wortschatz
+  Leipzig, Universität Leipzig / SAW Leipzig / InfAI). Keep this credit if you reuse the data.
+- **Changes.** The corpus word list is not copied. `ingest/ingest.py` adds up the counts of
+  each entry's headword and inflected forms and stores one number per entry in the database.
+- **Terms.** The project's terms say its web interface and services are CC BY-NC, but that the
+  text corpora offered for **download** are CC BY. Lexikon only uses a downloaded list.
+- **Not in this repository.** The word list is never committed; it is read from `data/raw/`
+  when the database is built.
+
 ## Audio recordings
 
 Pronunciation clips are **not copied** into this repository or its database; only their URLs are

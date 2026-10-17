@@ -355,6 +355,8 @@ Known limits, roughly in the order they would be worth fixing:
 - `data/raw/*` and `data/*.db` are **not** committed — rebuild them with step 1.
 - Lexical data is derived from Wiktionary via kaikki.org (CC BY-SA 4.0); see
   [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- Word frequencies come from the [Leipzig Corpora Collection](https://wortschatz.uni-leipzig.de/en/download)
+  (Wortschatz Leipzig, CC BY); see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Contributing
 
