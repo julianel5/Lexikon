@@ -119,7 +119,7 @@ export function MorphologyTable({ entry }: MorphologyTableProps) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="group inline-flex w-fit items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/40 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300 backdrop-blur transition-all hover:border-violet-500/40 hover:text-violet-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+        className="group inline-flex w-fit items-center gap-2 rounded-card border border-card-edge-strong bg-card px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-300 transition-colors hover:border-violet-500/40 hover:text-violet-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
       >
         <span>{open ? 'Hide full grammar' : 'Show full grammar'}</span>
         <svg
@@ -139,7 +139,7 @@ export function MorphologyTable({ entry }: MorphologyTableProps) {
       {open && (
         <div className="flex flex-col gap-6">
           {hasDecl && (
-            <div className="overflow-x-auto rounded-2xl border border-slate-800/60 bg-[#0F172A]/40 p-4 shadow-lg backdrop-blur scrollbar-thin scrollbar-thin-dark">
+            <div className="overflow-x-auto rounded-card border border-card-edge-strong bg-card p-4 scrollbar-thin scrollbar-thin-dark">
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">Declension</h3>
               <div className="grid min-w-[26rem] grid-cols-[minmax(3rem,auto)_repeat(4,minmax(0,1fr))] gap-2 text-sm">
                 <div />
@@ -154,7 +154,7 @@ export function MorphologyTable({ entry }: MorphologyTableProps) {
                       {n}
                     </div>
                     {cases.map((c) => (
-                      <div key={`${c}-${n}`} className="flex h-full w-full min-w-0 flex-col justify-center gap-1 rounded-xl border border-slate-800/40 bg-[#0F172A]/60 px-3 py-2">
+                      <div key={`${c}-${n}`} className="flex h-full w-full min-w-0 flex-col justify-center gap-1 rounded-card border border-card-edge bg-card px-3 py-2">
                         {(declension[c][n] as Form[]).length === 0 ? (
                           <span className="text-center text-xs text-slate-600">—</span>
                         ) : (
@@ -182,7 +182,7 @@ export function MorphologyTable({ entry }: MorphologyTableProps) {
                 const list = verbGroups[tg]
                 if (list.length === 0) return null
                 return (
-                  <div key={tg} className="overflow-x-auto rounded-2xl border border-slate-800/60 bg-[#0F172A]/40 p-4 shadow-lg backdrop-blur scrollbar-thin scrollbar-thin-dark">
+                  <div key={tg} className="overflow-x-auto rounded-card border border-card-edge-strong bg-card p-4 scrollbar-thin scrollbar-thin-dark">
                     <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-slate-400">{tg}</h3>
                     <div className="grid min-w-[22rem] grid-cols-[auto_auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
                       {list.map((row, i) => (
@@ -198,7 +198,7 @@ export function MorphologyTable({ entry }: MorphologyTableProps) {
                               <span
                                 key={j}
                                 lang="de"
-                                className="min-w-0 max-w-full rounded-lg bg-slate-800/60 px-2 py-0.5 text-sm font-medium break-words hyphens-auto text-slate-100"
+                                className="min-w-0 max-w-full rounded-card bg-slate-800/60 px-2 py-0.5 text-sm font-medium break-words hyphens-auto text-slate-100"
                               >
                                 {f.form}
                               </span>
