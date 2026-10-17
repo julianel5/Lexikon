@@ -12,8 +12,13 @@ behaviour).
 
 - Word frequencies in the ingest: `--freq` reads a Leipzig Corpora Collection word list and stores,
   per entry, how often its headword and inflected forms occur (`entries.freq`, `entries.freq_rank`,
-  and `autocomplete.freq`). It is optional and nothing uses the numbers yet: ranking and the
-  interface follow in later changes.
+  and `autocomplete.freq`). It is optional.
+- The API uses the frequencies when the database has them: `/api/parse` ranks the candidate entries
+  of a word by how common they are (so *Danach* is *danach* and not a form of *nach*, and *meinen*
+  in *meinen Freunden* is the possessive), `/api/suggest` and `/api/autocomplete` put common words
+  first (*Wasser* before *wasserundurchlässig*), `/api/entry/:id` returns `frequency` and
+  `/api/suggest` results return `freqRank`. `/api/health` reports `frequencyEntries`. A database
+  without frequencies keeps working and ranking as before.
 
 ## [0.1.0] - 2026-10-16
 

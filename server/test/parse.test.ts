@@ -16,7 +16,8 @@ const entry = (
   headword: number,
   weight = 1000,
   article: string | null = null,
-): RawCandidate => ({ id, word, pos, article, gloss: `gloss of ${word}`, headword, weight });
+  freq = 0,
+): RawCandidate => ({ id, word, pos, article, gloss: `gloss of ${word}`, headword, weight, freq });
 
 /** A tiny in-memory dictionary. */
 function fakeLookup(): Lookup {
@@ -144,6 +145,53 @@ describe("rankCandidates", () => {
       true,
     );
     assert.equal(ranked[0]!.word, "ich");
+  });
+});
+
+describe("rankCandidates with word frequencies", () => {
+  it("puts the more frequent entry first when everything else is equal", () => {
+    const ranked = rankCandidates(
+      [entry(1, "rar", "noun", 1, 1000, null, 20), entry(2, "oft", "noun", 1, 1000, null, 20000)],
+      "Rar",
+      false,
+    );
+    assert.deepEqual(
+      ranked.map((c) => c.id),
+      [2, 1],
+    );
+  });
+
+  it("picks the most used pronoun for a form listed by all of them, whatever the size of the entry", () => {
+    // Wiktionary lists the whole pronoun table in every pronoun, so "mir" is a form of all of
+    // them; "er" and "es" have much bigger entries than "ich" but are used less
+    const ranked = rankCandidates(
+      [
+        entry(1, "er", "pron", 0, 2313, null, 28961),
+        entry(2, "es", "pron", 0, 2475, null, 29094),
+        entry(3, "ich", "pron", 0, 251, null, 100872),
+        entry(4, "ihr", "pron", 0, 62, null, 13482),
+      ],
+      "mir",
+      false,
+    );
+    assert.equal(ranked[0]!.word, "ich");
+  });
+
+  it("does not let a rare lemma beat a frequent one through the size of its entry", () => {
+    const ranked = rankCandidates(
+      [entry(1, "selten", "verb", 0, 5000, null, 3), entry(2, "häufig", "verb", 0, 800, null, 40000)],
+      "x",
+      false,
+    );
+    assert.equal(ranked[0]!.word, "häufig");
+  });
+
+  it("ranks exactly as before when no entry has a frequency", () => {
+    const plain = [entry(1, "a", "noun", 1, 900), entry(2, "b", "noun", 1, 400)];
+    const withZero = plain.map((c) => ({ ...c, freq: 0 }));
+    const withoutField = plain.map(({ freq: _freq, ...rest }) => rest);
+    const order = (list: RawCandidate[]) => rankCandidates(list, "a", false).map((c) => c.id);
+    assert.deepEqual(order(withZero), order(withoutField));
   });
 });
 

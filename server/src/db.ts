@@ -26,6 +26,16 @@ db.pragma("cache_size = -32000"); // ~32 MiB page cache
 db.pragma("mmap_size = 268435456"); // ~256 MiB mmap
 db.pragma("temp_store = MEMORY");
 
+const columnsOf = (table: string): Set<string> =>
+  new Set(db.prepare<[], { name: string }>(`PRAGMA table_info(${table})`).all().map((c) => c.name));
+
+// Word frequencies (ingest --freq) are optional: a database built without them, or before they
+// existed, has no frequency columns, and every query below must still work and rank as before.
+const hasFreq = columnsOf("entries").has("freq");
+/** SQL for the entry's occurrences in the frequency list (0 when the database has none). */
+const E_FREQ = hasFreq ? "e.freq" : "0";
+const E_FREQ_RANK = hasFreq ? "e.freq_rank" : "0";
+
 export interface SuggestResult {
   id: number;
   word: string;
@@ -37,6 +47,8 @@ export interface SuggestResult {
   kind: number;
   match: string;
   exactForm: boolean;
+  /** Rank of the entry by word frequency (1 = most frequent); null when it has none. */
+  freqRank: number | null;
 }
 
 export interface SuggestOutcome {
@@ -59,6 +71,7 @@ interface RawSuggestRow {
   g0: string | null;
   g1: string | null;
   g2: string | null;
+  freq_rank: number;
 }
 
 const SUGGEST_SQL = `
@@ -73,7 +86,9 @@ const SUGGEST_SQL = `
     json_extract(e.data, '$.plural')       AS plural,
     json_extract(e.data, '$.senses[0].glosses[0]') AS g0,
     json_extract(e.data, '$.senses[0].glosses[1]') AS g1,
-    json_extract(e.data, '$.senses[0].glosses[2]') AS g2
+    json_extract(e.data, '$.senses[0].glosses[2]') AS g2,
+    ${E_FREQ}                              AS freq,
+    ${E_FREQ_RANK}                         AS freq_rank
   FROM search_keys k
   JOIN entries e ON e.id = k.entry_id
   WHERE (k.kind = 0 AND k.key = @k0)
@@ -83,6 +98,9 @@ const SUGGEST_SQL = `
   GROUP BY e.id
   ORDER BY kind ASC,
            exact_form DESC,
+           -- The more frequent word first (0 for every entry when the database has no list).
+           -- Ordered by the alias: a bare 0 in ORDER BY would mean "column number 0".
+           freq DESC,
            -- Within the same kind and score: German matches put shorter words first. English
            -- (reverse) matches have many equally good candidates, so the entry with the most
            -- documented senses and examples (a proxy for how common the word is) goes first.
@@ -117,7 +135,9 @@ const MULTI_WORD_SQL = `
       SELECT 1
       FROM json_each(e.data, '$.senses') AS s, json_each(s.value, '$.glosses') AS g
       WHERE instr(lower(g.value), @phrase) > 0
-    )                                      AS phrase
+    )                                      AS phrase,
+    ${E_FREQ}                              AS freq,
+    ${E_FREQ_RANK}                         AS freq_rank
   FROM search_keys k
   JOIN entries e ON e.id = k.entry_id
   WHERE k.kind = 3 AND k.key IN (SELECT value FROM json_each(@words))
@@ -125,14 +145,15 @@ const MULTI_WORD_SQL = `
   HAVING COUNT(DISTINCT k.key) = @n
   ORDER BY phrase DESC,
            exact_form DESC,
+           freq DESC,
            -length(json_extract(e.data, '$.senses')) ASC,
            e.word ASC
   LIMIT @limit
 `;
 
 const multiWordStmt = db.prepare<[Record<string, unknown>], RawSuggestRow>(MULTI_WORD_SQL);
-const entryStmt = db.prepare<[number], { data: string }>(
-  "SELECT data FROM entries WHERE id = ?",
+const entryStmt = db.prepare<[number], { data: string; freq: number; freq_rank: number }>(
+  `SELECT data, ${E_FREQ} AS freq, ${E_FREQ_RANK} AS freq_rank FROM entries e WHERE id = ?`,
 );
 const countStmt = db.prepare<[], { c: number }>("SELECT count(*) AS c FROM entries");
 const keysStmt = db.prepare<[], { c: number }>("SELECT count(*) AS c FROM search_keys");
@@ -207,6 +228,7 @@ function runSuggest(query: string, limit: number): SuggestResult[] {
       // kinds 0-2: the key is the headword itself (1) or an inflected form (0);
       // kind 3: any score above 0 is a translation match
       exactForm: row.exact_form >= 1,
+      freqRank: row.freq_rank > 0 ? row.freq_rank : null,
     };
   });
 }
@@ -219,19 +241,20 @@ export interface AutocompleteItem {
 
 // Prefix suggestions over headword keys, most "important" first. An exact
 // match of the typed text always leads; then single words come before
-// multi-word phrases/idioms; within each group entries are
-// ranked by weight (the size of the entry, a popularity proxy). Matches on
-// any of the three folded key kinds, so "madch" and "mädch" both find
-// "Mädchen".
+// multi-word phrases/idioms; within each group entries are ranked by word
+// frequency and then by weight (the size of the entry, a popularity proxy, which is all there
+// is for words the frequency list does not have). Matches on any of the three folded key
+// kinds, so "madch" and "mädch" both find "Mädchen".
+const AC_FREQ = columnsOf("autocomplete").has("freq") ? "MAX(freq)" : "0";
 const AC_TABLE_SQL = `
-  SELECT entry_id AS id, word, pos, MAX(weight) AS weight,
+  SELECT entry_id AS id, word, pos, MAX(weight) AS weight, ${AC_FREQ} AS freq,
          MAX(key IN (@a0, @a1, @a2)) AS exact
   FROM autocomplete
   WHERE (kind = 0 AND key >= @a0 AND key < @b0)
      OR (kind = 1 AND key >= @a1 AND key < @b1)
      OR (kind = 2 AND key >= @a2 AND key < @b2)
   GROUP BY entry_id
-  ORDER BY exact DESC, (instr(word, ' ') > 0) ASC, weight DESC,
+  ORDER BY exact DESC, (instr(word, ' ') > 0) ASC, freq DESC, weight DESC,
            length(word) ASC, word ASC
   LIMIT @limit
 `;
@@ -239,7 +262,7 @@ const AC_TABLE_SQL = `
 // Fallback for databases built before the autocomplete table existed.
 const AC_FALLBACK_SQL = `
   SELECT e.id AS id, e.word AS word, e.pos AS pos, length(e.data) AS weight,
-         MAX(k.key IN (@a0, @a1, @a2)) AS exact
+         ${E_FREQ} AS freq, MAX(k.key IN (@a0, @a1, @a2)) AS exact
   FROM search_keys k
   JOIN entries e ON e.id = k.entry_id
   WHERE k.exact_form = 1 AND (
@@ -247,7 +270,7 @@ const AC_FALLBACK_SQL = `
      OR (k.kind = 1 AND k.key >= @a1 AND k.key < @b1)
      OR (k.kind = 2 AND k.key >= @a2 AND k.key < @b2))
   GROUP BY e.id
-  ORDER BY exact DESC, (instr(e.word, ' ') > 0) ASC, weight DESC,
+  ORDER BY exact DESC, (instr(e.word, ' ') > 0) ASC, freq DESC, weight DESC,
            length(e.word) ASC, e.word ASC
   LIMIT @limit
 `;
@@ -261,7 +284,7 @@ const hasAutocompleteTable =
 
 const autocompleteStmt = db.prepare<
   [Record<string, unknown>],
-  { id: number; word: string; pos: string; weight: number }
+  { id: number; word: string; pos: string; weight: number; freq: number }
 >(hasAutocompleteTable ? AC_TABLE_SQL : AC_FALLBACK_SQL);
 
 export function autocomplete(query: string, limit = 8): AutocompleteItem[] {
@@ -303,7 +326,8 @@ const WORD_CANDIDATES_SQL = `
     json_extract(e.data, '$.senses[0].glosses[0]')  AS gloss,
     MAX(k.exact_form)                               AS headword,
     -- size of the senses only: the forms table would make every verb look "bigger"
-    length(json_extract(e.data, '$.senses'))        AS weight
+    length(json_extract(e.data, '$.senses'))        AS weight,
+    ${E_FREQ}                                       AS freq
   FROM search_keys k
   JOIN entries e ON e.id = k.entry_id
   WHERE k.kind = @kind AND k.key = @key
@@ -320,13 +344,14 @@ const HEADWORD_SQL = `
     json_extract(e.data, '$.article')               AS article,
     json_extract(e.data, '$.senses[0].glosses[0]')  AS gloss,
     1                                               AS headword,
-    length(json_extract(e.data, '$.senses'))        AS weight
+    length(json_extract(e.data, '$.senses'))        AS weight,
+    ${E_FREQ}                                       AS freq
   FROM search_keys k
   JOIN entries e ON e.id = k.entry_id
   WHERE k.kind = 0 AND k.key = @key AND k.exact_form = 1
     AND e.pos IN ('noun', 'verb', 'adj', 'adv')
   GROUP BY e.id
-  ORDER BY length(json_extract(e.data, '$.senses')) DESC
+  ORDER BY freq DESC, length(json_extract(e.data, '$.senses')) DESC
   LIMIT 1
 `;
 
@@ -379,13 +404,25 @@ export function getEntry(id: number): Record<string, unknown> | null {
   const row = entryStmt.get(id);
   if (!row) return null;
   const entry = JSON.parse(row.data) as Record<string, unknown>;
-  return { id, ...entry };
+  const frequency = row.freq > 0 ? { frequency: { count: row.freq, rank: row.freq_rank } } : {};
+  return { id, ...entry, ...frequency };
 }
 
-export function stats(): { entries: number; searchKeys: number; dbPath: string } {
+// Computed once: how many entries have a frequency (0 for a database built without a list)
+const frequencyEntries = hasFreq
+  ? db.prepare<[], { c: number }>("SELECT count(*) AS c FROM entries WHERE freq > 0").get()!.c
+  : 0;
+
+export function stats(): {
+  entries: number;
+  searchKeys: number;
+  frequencyEntries: number;
+  dbPath: string;
+} {
   return {
     entries: countStmt.get()!.c,
     searchKeys: keysStmt.get()!.c,
+    frequencyEntries,
     dbPath: DB_PATH,
   };
 }

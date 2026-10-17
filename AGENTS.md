@@ -21,7 +21,8 @@ Implemented: folded search (umlaut/ß), English → German reverse search, as-yo
 autocomplete, sentence segmentation with lemma resolution and compound splitting
 (`POST /api/parse`), entry pages with IPA, audio, grammar tables, relations, light/dark theme,
 shareable URLs.
-Not implemented (listed in the README roadmap, do not assume they exist): word-frequency data,
+Word frequencies exist in the data and the API (optional `--freq` in the ingest, used to rank text analysis, suggestions and
+autocomplete) but are not shown in the UI yet. Not implemented (listed in the README roadmap, do not assume they exist):
 separable-verb recognition, multi-word expressions, English lemmatization, Anki export, example
 sentences from other corpora. There is no user system and no write API.
 
@@ -136,10 +137,11 @@ This replaces any Japanese-specific assumptions: the data is German Wiktionary.
 - Compounds: the right-hand part decides the meaning; linking elements (`s`, `n`, `en`, `er`, `e`,
   `es`, `ens`, `ns`) are handled in `decompose`. Splits need parts of at least 3 letters.
 
-**Current behaviour and limits (confirmed, README roadmap):** no frequency data (some ambiguous
-lemmas rank wrongly, e.g. *mir*), no separable-verb detection, English queries are not
-lemmatized. Do not describe these as supported. Frequency-based ranking and other additions are
-**proposals**: discuss them with the maintainers first.
+**Current behaviour and limits (confirmed, README roadmap):** frequencies are optional (a database built without `--freq`
+has `freq = 0` everywhere and the server must keep working and ranking as before), personal pronouns are
+still ambiguous (every pronoun lists the same table, so *mir* does not always get *ich* first), no
+separable-verb detection, English queries are not lemmatized. Do not describe these as supported.
+Other additions are **proposals**: discuss them with the maintainers first.
 
 **Search invariants (confirmed):** German matches (kinds 0–2) always rank before English ones
 (kind 3); results are ordered by `kind`, then relevance (see `SUGGEST_SQL` in `db.ts`). Keep
@@ -162,7 +164,8 @@ Rules:
 - Do not add a data source (dictionary, corpus, frequency list, audio, API) without first
   checking its origin, licence, format and compatibility with CC BY-SA 4.0 data and MIT code,
   and recording it in `THIRD_PARTY_NOTICES.md`. Frequency lists in particular have conflicting
-  or non-commercial terms: **verify before use**. If the licence is unclear, say so and stop.
+  or non-commercial terms: **verify before use** (the Leipzig list in use was checked against the
+  project's Terms of Usage). If the licence is unclear, say so and stop.
 - Do not copy content, data, text, code or assets from Jiten or any other dictionary.
 - Never commit `data/raw/*`, `data/*.db`, or other large generated data.
 

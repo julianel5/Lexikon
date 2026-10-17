@@ -32,6 +32,8 @@ export interface RawCandidate {
   headword: number;
   /** size of the entry: a cheap "how common / how documented" signal */
   weight: number;
+  /** occurrences of the entry in a word frequency list; 0 or absent when it has no frequency */
+  freq?: number;
 }
 
 export interface Lookup {
@@ -93,6 +95,12 @@ const NOUNISH = new Set(["noun", "name"]);
 const SECONDARY_GLOSS_RE =
   /^(?:\S+\s+){0,3}?(?:form|spelling|variant|abbreviation|initialism|acronym|clipping|misspelling)\s+of\b/i;
 
+// How much the (base 10) logarithm of an entry's frequency counts: one point per power of ten.
+const FREQ_WEIGHT = 1;
+// When frequencies are known the size of an entry only breaks ties. It is a poor stand-in for
+// frequency: Wiktionary's "er" and "es" are ten times bigger than "ich", but "ich" is used more.
+const SIZE_TIEBREAK = 0.01;
+
 // Prior of each part of speech: in a running text the closed classes (articles, prepositions,
 // pronouns...) are by far the most frequent words, so "die" is the article before it is a rare
 // verb form, and "eine" is ein before it is "einen" (to unite). Without a frequency list this
@@ -125,6 +133,9 @@ export function rankCandidates(
   sentenceStart: boolean,
 ): Candidate[] {
   const capitalized = surface.charAt(0) !== surface.charAt(0).toLowerCase();
+  // A database built without a frequency list gives every entry 0: then the size of the entry
+  // is the only popularity signal there is, as before.
+  const haveFrequencies = raw.some((c) => (c.freq ?? 0) > 0);
   const scored = raw.map((c) => {
     // A headword match is a hint, not a verdict: "die" has no entry of its own and is a form of
     // der/die/das, while "mir" has a rarely used headword entry next to its real lemma ich.
@@ -141,7 +152,11 @@ export function rankCandidates(
     // a lower-case word is rarely one. At the start of a sentence the capital says nothing.
     if (capitalized && !sentenceStart) score += NOUNISH.has(c.pos) ? 8 : -4;
     if (!capitalized) score += NOUNISH.has(c.pos) ? -4 : 0;
-    return { c, score: score + Math.log10(Math.max(c.weight, 1)) };
+    const size = Math.log10(Math.max(c.weight, 1));
+    score += haveFrequencies
+      ? FREQ_WEIGHT * Math.log10((c.freq ?? 0) + 1) + SIZE_TIEBREAK * size
+      : size;
+    return { c, score };
   });
   scored.sort((a, b) => b.score - a.score || a.c.word.localeCompare(b.c.word));
   return scored.slice(0, MAX_CANDIDATES).map(({ c }) => ({

@@ -184,7 +184,7 @@ Base URL: `http://localhost:3000`
 ### `GET /api/health`
 
 ```json
-{ "status": "ok", "entries": 102740, "searchKeys": 4060857, "dbPath": "…/data/dictionary.db" }
+{ "status": "ok", "entries": 102740, "searchKeys": 4060857, "frequencyEntries": 63043, "dbPath": "…/data/dictionary.db" }
 ```
 
 ### `GET /api/suggest?q={query}&limit={n}`
@@ -213,7 +213,8 @@ curl "http://localhost:3000/api/suggest?q=schoen"
       "snippet": "beautiful, lovely, pretty, handsome",
       "kind": 1,
       "match": "translit",
-      "exactForm": true
+      "exactForm": true,
+      "freqRank": 223
     }
   ]
 }
@@ -276,12 +277,17 @@ curl -X POST http://localhost:3000/api/parse \
 
 The lemma is chosen from the keys the ingest already stores for inflected forms; ranking uses a
 part-of-speech prior (articles, prepositions and pronouns first), whether the word is capitalised
-in the middle of a sentence (a noun) and the size of the entry. Without a frequency list some
-ambiguous words still pick the wrong lemma first (*mir* → es); the other candidates are returned.
+in the middle of a sentence (a noun) and, for databases built with `--freq`, how frequent the entry
+is (without it, the size of the entry stands in for frequency). Some ambiguous words can still pick
+the wrong lemma first: Wiktionary lists the same pronoun table in every personal pronoun, so for
+*mir* or *ihm* the right pronoun (ich, er) is among the candidates but not always the first; the
+other candidates are always returned.
 
 ### `GET /api/entry/:id`
 
 Full stored entry as JSON (forms, senses, examples, sounds, relations).
+When the database has word frequencies, the entry also has `frequency`: `{ "count": 100872, "rank": 11 }`
+(occurrences in the word list and rank, 1 = most frequent).
 Returns `404` for an unknown id and `400` for a non-numeric id.
 
 ```bash
@@ -362,8 +368,10 @@ to the old one, swap the files and restart the API service.
 
 Known limits, roughly in the order they would be worth fixing:
 
-- **No word frequency data**, so some ambiguous words still pick a rare lemma first
-  (*mir* → es). A frequency list would fix this and enable a "common words" filter.
+- **Personal pronouns are still ambiguous**: Wiktionary lists the same table in every one of them,
+  so *mir* or *ihm* do not always get their lemma (*ich*, *er*) first.
+- **Frequencies are not shown yet**: the API returns them, but the interface has no "common word"
+  badge or filter.
 - **Separable verbs** (*ich stehe um 7 Uhr auf* → aufstehen) are not recognised.
 - **Multi-word expressions** are only found when the whole phrase is a dictionary entry.
 - **English queries are not lemmatized** (`went` does not find *gehen*).
