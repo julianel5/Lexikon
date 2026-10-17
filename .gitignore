@@ -13,6 +13,10 @@ data/*.gz
 node_modules/
 dist/
 
+# Local dev server logs
+server.log
+server.err
+
 # OS / editor
 .DS_Store
 Thumbs.db
