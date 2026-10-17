@@ -97,6 +97,20 @@ class ComputeFrequenciesTests(unittest.TestCase):
         counts = {"ich": 10, "Ich": 4}
         self.assertEqual(ingest.compute_frequencies([(1, ["ich"], [])], counts), {1: 14})
 
+    def test_a_capitalised_spelling_far_more_frequent_than_the_lower_case_one_is_another_word(self) -> None:
+        # "haus" (imperative of "hausen") is rare; "Haus" is the noun
+        counts = {"haus": 21, "Haus": 3719}
+        self.assertEqual(ingest.compute_frequencies([(1, ["haus"], [])], counts), {1: 21})
+
+    def test_a_capitalised_spelling_alone_is_not_counted_for_a_lower_case_word(self) -> None:
+        self.assertEqual(ingest.compute_frequencies([(1, ["haus"], [])], {"Haus": 100}), {})
+
+    def test_a_sentence_start_capital_is_counted_up_to_the_ratio(self) -> None:
+        counts = {"heute": 100, "Heute": 300}  # exactly 3 times: counted
+        self.assertEqual(ingest.compute_frequencies([(1, ["heute"], [])], counts), {1: 400})
+        counts = {"heute": 100, "Heute": 301}
+        self.assertEqual(ingest.compute_frequencies([(1, ["heute"], [])], counts), {1: 100})
+
     def test_nouns_do_not_count_their_lower_case_spelling(self) -> None:
         counts = {"Haus": 10, "haus": 3}
         self.assertEqual(ingest.compute_frequencies([(1, ["Haus"], [])], counts), {1: 10})

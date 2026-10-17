@@ -657,6 +657,12 @@ def load_frequencies(path: Path) -> dict[str, int]:
     return counts
 
 
+# A capitalised spelling of a lower-case word is counted only up to this many times the count of
+# the lower-case one. "Ich" at the start of a sentence is about half as frequent as "ich"; but
+# "Haus" is 170 times as frequent as "haus" (the imperative of "hausen"): it is the noun.
+CAPITAL_VARIANT_MAX_RATIO = 3
+
+
 def surface_variants(form: str) -> list[str]:
     """Spellings under which a form can appear in running text.
 
@@ -668,6 +674,18 @@ def surface_variants(form: str) -> list[str]:
     if form[:1].islower():
         variants.append(form[:1].upper() + form[1:])
     return variants
+
+
+def _counted_variants(form: str, counts: dict[str, int]) -> list[str]:
+    """The spellings of a form that are in the word list and plausibly are that form."""
+    variants = surface_variants(form)
+    base = counts.get(variants[0], 0)
+    return [
+        variant
+        for index, variant in enumerate(variants)
+        if variant in counts
+        and (index == 0 or counts[variant] <= CAPITAL_VARIANT_MAX_RATIO * base)
+    ]
 
 
 def compute_frequencies(
@@ -689,13 +707,11 @@ def compute_frequencies(
     listers: dict[str, set[int]] = {}
     for entry_id, owned, listed in entries:
         for form in owned:
-            for variant in surface_variants(form):
-                if variant in counts:
-                    owners.setdefault(variant, set()).add(entry_id)
+            for variant in _counted_variants(form, counts):
+                owners.setdefault(variant, set()).add(entry_id)
         for form in listed:
-            for variant in surface_variants(form):
-                if variant in counts:
-                    listers.setdefault(variant, set()).add(entry_id)
+            for variant in _counted_variants(form, counts):
+                listers.setdefault(variant, set()).add(entry_id)
     totals: dict[int, float] = {}
     for variant in owners.keys() | listers.keys():
         receivers = owners.get(variant) or listers[variant]
