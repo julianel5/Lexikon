@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Entry, RelationItem, RelationKey } from '../lib/api'
 import { morphFields } from '../lib/morphology'
 import { playNormalized } from '../lib/normalizedAudio'
+import { reportEntryUrl } from '../lib/links'
 import { useEntry } from '../lib/useEntry'
 import { ArticleChips } from './ArticleChips'
 import { MorphologyTable } from './MorphologyTable'
@@ -339,6 +340,17 @@ export function EntryDetails({
       ))}
 
       <MorphologyTable entry={entry} />
+
+      <p className="mt-6 text-xs text-slate-500">
+        <a
+          href={reportEntryUrl(entry.word, `/entry/${entry.id}/${entry.word}`)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-violet-400"
+        >
+          Report a problem with this entry
+        </a>
+      </p>
     </article>
   )
 }

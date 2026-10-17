@@ -16,6 +16,12 @@ behaviour).
 
 ### Added
 
+- Link previews: the page has a description and Open Graph / Twitter metadata with a 1200x630
+  image, so a shared link shows a card (Reddit, Discord, Telegram, Slack...).
+- "Report a problem with this entry" on every entry opens the *wrong or missing entry* issue form on
+  GitHub with the word and the page already filled in; the footer links to the issue chooser.
+- The footer credits the Leipzig Corpora Collection (CC BY) next to Wiktionary.
+- A real `robots.txt`.
 - Word frequencies in the ingest: `--freq` reads a Leipzig Corpora Collection word list and stores,
   per entry, how often its headword and inflected forms occur (`entries.freq`, `entries.freq_rank`,
   and `autocomplete.freq`). It is optional.

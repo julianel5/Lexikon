@@ -1,4 +1,5 @@
-const REPO_URL = 'https://github.com/julianel5/Lexikon'
+import { REPORT_PROBLEM_URL, REPO_URL } from '../lib/links'
+
 const KOFI_URL = 'https://ko-fi.com/muzzijoaquin'
 
 const linkClass =
@@ -82,6 +83,24 @@ export function Footer() {
           className="underline hover:text-violet-400"
         >
           CC BY-SA 4.0
+        </a>
+        . Word frequencies from the{' '}
+        <a
+          href="https://wortschatz.uni-leipzig.de/en/download"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-violet-400"
+        >
+          Leipzig Corpora Collection
+        </a>{' '}
+        (Universität Leipzig, CC BY). Found a mistake or have an idea?{' '}
+        <a
+          href={REPORT_PROBLEM_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-violet-400"
+        >
+          Tell us on GitHub
         </a>
         .
       </p>
