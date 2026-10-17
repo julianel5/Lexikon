@@ -21,6 +21,7 @@ behaviour).
 - Separable verbs no longer join a preposition with its object (*stehe auf dem Tisch*, *kommt mit
   Freunden*, *fährt mit mir* are not *aufstehen*, *mitkommen*, *mitfahren*), and are found again when a comma
   or a full stop follows the particle (*Ich stehe auf, weil…*).
+- The web app manifest is served as `application/manifest+json`, not `application/octet-stream`.
 
 ## [0.2.0] - 2026-10-17
 

@@ -12,6 +12,11 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
+    # nginx's mime.types does not know .webmanifest, so it would be sent as application/octet-stream
+    location = /manifest.webmanifest {
+        default_type application/manifest+json;
+    }
+
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, immutable";
