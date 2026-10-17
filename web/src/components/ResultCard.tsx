@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { SuggestResult } from '../lib/api'
 import { ArticleChips } from './ArticleChips'
-import { PILL, PosPill } from './Pills'
+import { FreqPill, PILL, PosPill } from './Pills'
 
 /** `kind` the API reports for a reverse (English -> German) match. */
 const ENGLISH_MATCH_KIND = 3
@@ -58,6 +58,7 @@ export function ResultCard({
           </span>
           <ArticleChips article={result.article} />
           <PosPill pos={result.pos} />
+          <FreqPill rank={result.freqRank} />
           {viaEnglish && (
             <span
               title="Found through its English translation"

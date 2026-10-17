@@ -5,7 +5,7 @@ import { playNormalized } from '../lib/normalizedAudio'
 import { useEntry } from '../lib/useEntry'
 import { ArticleChips } from './ArticleChips'
 import { MorphologyTable } from './MorphologyTable'
-import { PILL, PosPill } from './Pills'
+import { FreqPill, PILL, PosPill } from './Pills'
 
 interface EntryViewProps {
   id: number
@@ -233,6 +233,7 @@ export function EntryDetails({
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           <PosPill pos={entry.pos} />
           <ArticleChips article={entry.article} />
+          <FreqPill rank={entry.frequency?.rank} />
           {entry.separable && (
             <span className={`${PILL} bg-amber-900/30 text-amber-300`}>
               separable

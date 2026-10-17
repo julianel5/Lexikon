@@ -9,6 +9,8 @@ export interface SuggestResult {
   kind: number
   match: string
   exactForm: boolean
+  /** Rank by word frequency (1 = most frequent); null or absent when the entry has none. */
+  freqRank?: number | null
 }
 
 export interface SuggestResponse {
@@ -92,6 +94,8 @@ export interface Entry {
   holonyms?: RelationItem[]
   meronyms?: RelationItem[]
   coordinate_terms?: RelationItem[]
+  /** How often the word occurs in the frequency list; absent when the database has none. */
+  frequency?: { count: number; rank: number }
 }
 
 const API_BASE: string =
