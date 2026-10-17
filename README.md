@@ -184,7 +184,7 @@ Base URL: `http://localhost:3000`
 ### `GET /api/health`
 
 ```json
-{ "status": "ok", "entries": 102740, "searchKeys": 4060857, "frequencyEntries": 63043, "dbPath": "…/data/dictionary.db" }
+{ "status": "ok", "entries": 102740, "searchKeys": 4060857, "frequencyEntries": 62551 }
 ```
 
 ### `GET /api/suggest?q={query}&limit={n}`
@@ -380,7 +380,8 @@ Known limits, roughly in the order they would be worth fixing:
   so *mir* or *ihm* do not always get their lemma (*ich*, *er*) first.
 - **No "common words" filter yet**: the interface shows the frequency rank of every word (`#349`),
   but you cannot filter or sort by it.
-- **Separable verbs** (*ich stehe um 7 Uhr auf* → aufstehen) are not recognised.
+- **Separable verbs** are recognised only when the two parts are next to each other (*ich stehe auf*
+  → aufstehen); with words in between (*ich stehe um 7 Uhr auf*) they are not.
 - **Multi-word expressions** are only found when the whole phrase is a dictionary entry.
 - **English queries are not lemmatized** (`went` does not find *gehen*).
 - Ideas: Anki export, example sentences from Tatoeba.

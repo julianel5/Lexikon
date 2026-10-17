@@ -54,7 +54,11 @@ app.get("/", (c) =>
   }),
 );
 
-app.get("/api/health", (c) => c.json({ status: "ok", ...stats() }));
+app.get("/api/health", (c) => {
+  // the path of the database is not part of the public answer
+  const { entries, searchKeys, frequencyEntries } = stats();
+  return c.json({ status: "ok", entries, searchKeys, frequencyEntries });
+});
 
 app.get("/api/suggest", (c) => {
   const q = (c.req.query("q") ?? "").trim();

@@ -12,6 +12,11 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
+    # There is no sitemap: without this the single-page fallback would answer it with the home page
+    location = /sitemap.xml {
+        return 404;
+    }
+
     # nginx's mime.types does not know .webmanifest, so it would be sent as application/octet-stream
     location = /manifest.webmanifest {
         default_type application/manifest+json;
