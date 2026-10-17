@@ -102,6 +102,14 @@ class ComputeFrequenciesTests(unittest.TestCase):
         counts = {"haus": 21, "Haus": 3719}
         self.assertEqual(ingest.compute_frequencies([(1, ["haus"], [])], counts), {1: 21})
 
+    def test_an_interjection_counts_its_capitalised_spelling_without_the_limit(self) -> None:
+        # "Hallo" opens the sentence far more often than "hallo" appears inside one
+        counts = {"hallo": 47, "Hallo": 1223}
+        entries = [(1, ["hallo"], [], True)]
+        self.assertEqual(ingest.compute_frequencies(entries, counts), {1: 1270})
+        # the same counts for a non-interjection keep the limit
+        self.assertEqual(ingest.compute_frequencies([(1, ["hallo"], [])], counts), {1: 47})
+
     def test_a_capitalised_spelling_alone_is_not_counted_for_a_lower_case_word(self) -> None:
         self.assertEqual(ingest.compute_frequencies([(1, ["haus"], [])], {"Haus": 100}), {})
 

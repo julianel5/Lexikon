@@ -32,6 +32,31 @@ const columnsOf = (table: string): Set<string> =>
 // Word frequencies (ingest --freq) are optional: a database built without them, or before they
 // existed, has no frequency columns, and every query below must still work and rank as before.
 const hasFreq = columnsOf("entries").has("freq");
+/**
+ * An English (reverse) match whose first sense is marked as archaic, regional, slang, childish...
+ * counts one relevance step lower, so the standard word comes first: "cat" gives Katze before the
+ * archaic Northern German Bönhase, "goodbye" gives auf Wiedersehen before the slang bleib stabil.
+ * Colloquial and informal are not marked: many everyday words and greetings are colloquial.
+ */
+const MARKED_TAGS = [
+  "archaic",
+  "obsolete",
+  "dated",
+  "historical",
+  "rare",
+  "regional",
+  "dialectal",
+  "slang",
+  "humorous",
+  "childish",
+  "derogatory",
+  "vulgar",
+  "offensive",
+]
+  .map((tag) => `'${tag}'`)
+  .join(", ");
+const IS_MARKED = `EXISTS (SELECT 1 FROM json_each(e.data, '$.senses[0].tags') t WHERE t.value IN (${MARKED_TAGS}))`;
+
 /** SQL for the entry's occurrences in the frequency list (0 when the database has none). */
 const E_FREQ = hasFreq ? "e.freq" : "0";
 const E_FREQ_RANK = hasFreq ? "e.freq_rank" : "0";
@@ -97,7 +122,8 @@ const SUGGEST_SQL = `
      OR (k.kind = 3 AND k.key = @k3)
   GROUP BY e.id
   ORDER BY kind ASC,
-           exact_form DESC,
+           -- English matches: a marked first sense (archaic, regional, slang...) is one step lower
+           exact_form - CASE WHEN MIN(k.kind) = 3 AND ${IS_MARKED} THEN 1 ELSE 0 END DESC,
            -- The more frequent word first (0 for every entry when the database has no list).
            -- Ordered by the alias: a bare 0 in ORDER BY would mean "column number 0".
            freq DESC,
@@ -144,7 +170,7 @@ const MULTI_WORD_SQL = `
   GROUP BY e.id
   HAVING COUNT(DISTINCT k.key) = @n
   ORDER BY phrase DESC,
-           exact_form DESC,
+           exact_form - CASE WHEN ${IS_MARKED} THEN 1 ELSE 0 END DESC,
            freq DESC,
            -length(json_extract(e.data, '$.senses')) ASC,
            e.word ASC

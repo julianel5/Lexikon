@@ -676,24 +676,30 @@ def surface_variants(form: str) -> list[str]:
     return variants
 
 
-def _counted_variants(form: str, counts: dict[str, int]) -> list[str]:
-    """The spellings of a form that are in the word list and plausibly are that form."""
+def _counted_variants(form: str, counts: dict[str, int], capital_ok: bool = False) -> list[str]:
+    """The spellings of a form that are in the word list and plausibly are that form.
+
+    ``capital_ok`` skips the limit on the capitalised spelling: interjections ("Hallo", "Prost",
+    "Hi") almost always start the sentence, so they are far more frequent capitalised.
+    """
     variants = surface_variants(form)
     base = counts.get(variants[0], 0)
     return [
         variant
         for index, variant in enumerate(variants)
         if variant in counts
-        and (index == 0 or counts[variant] <= CAPITAL_VARIANT_MAX_RATIO * base)
+        and (index == 0 or capital_ok or counts[variant] <= CAPITAL_VARIANT_MAX_RATIO * base)
     ]
 
 
 def compute_frequencies(
-    entries: Iterable[tuple[int, Iterable[str], Iterable[str]]], counts: dict[str, int]
+    entries: Iterable[tuple[int, Iterable[str], Iterable[str]] | tuple[int, Iterable[str], Iterable[str], bool]],
+    counts: dict[str, int],
 ) -> dict[int, int]:
     """Occurrences per entry, from the word list.
 
-    Each entry is ``(id, owned, listed)``. *Owned* spellings are the ones Wiktionary has a page
+    Each entry is ``(id, owned, listed)``, or ``(id, owned, listed, capital_ok)`` for an
+    interjection (see ``_counted_variants``). *Owned* spellings are the ones Wiktionary has a page
     for: the headword and the inflected-form pages that point to the entry ("Häuser" -> Haus).
     *Listed* spellings are only mentioned in the entry's table of forms.
 
@@ -705,12 +711,13 @@ def compute_frequencies(
     """
     owners: dict[str, set[int]] = {}
     listers: dict[str, set[int]] = {}
-    for entry_id, owned, listed in entries:
+    for entry_id, owned, listed, *rest in entries:
+        capital_ok = bool(rest and rest[0])
         for form in owned:
-            for variant in _counted_variants(form, counts):
+            for variant in _counted_variants(form, counts, capital_ok):
                 owners.setdefault(variant, set()).add(entry_id)
         for form in listed:
-            for variant in _counted_variants(form, counts):
+            for variant in _counted_variants(form, counts, capital_ok):
                 listers.setdefault(variant, set()).add(entry_id)
     totals: dict[int, float] = {}
     for variant in owners.keys() | listers.keys():
@@ -727,10 +734,10 @@ def _apply_frequencies(
     """Fill entries.freq / freq_rank from the word list; returns a few numbers for the report."""
 
     def entries():
-        for entry_id, word, data in conn.execute("SELECT id, word, data FROM entries"):
+        for entry_id, word, pos, data in conn.execute("SELECT id, word, pos, data FROM entries"):
             owned = [word, *redirect_forms.get(entry_id, ())]
             listed = [f["form"] for f in json.loads(data).get("forms", [])]
-            yield entry_id, owned, listed
+            yield entry_id, owned, listed, pos == "intj"
 
     freqs = compute_frequencies(entries(), counts)
     ranked = sorted(freqs, key=lambda entry_id: (-freqs[entry_id], entry_id))

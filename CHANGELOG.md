@@ -10,6 +10,11 @@ behaviour).
 
 ### Changed
 
+- English searches put the standard word first: a match whose first sense is marked as archaic,
+  regional, slang, humorous, childish or derogatory counts one step lower (*cat* gives *Katze* before
+  the archaic *Bönhase*, *goodbye* gives *auf Wiedersehen* before the slang *bleib stabil*).
+- Interjections ("Hallo", "Hi", "Prost") count their capitalised spelling in the word frequencies
+  without the usual limit, since they almost always open a sentence (*hallo* is now #1,904, not #12,484).
 - The site moved to its own domain: <https://lexikon.moe>, with the API at `api.lexikon.moe`,
   behind Cloudflare (caching of read-only API responses, a per-IP rate limit, `www` redirect).
   The old Railway URL of the web app redirects; the API one keeps working.
