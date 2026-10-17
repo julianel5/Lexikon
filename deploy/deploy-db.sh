@@ -89,7 +89,9 @@ api, word = sys.argv[1], sys.argv[2]
 nocache = "_=" + str(time.time_ns())
 def get(path):
     sep = "&" if "?" in path else "?"
-    return json.load(urllib.request.urlopen(api + path + sep + nocache, timeout=20))
+    # Cloudflare answers 403 to urllib's default User-Agent, so send our own
+    request = urllib.request.Request(api + path + sep + nocache, headers={"User-Agent": "lexikon-deploy-script"})
+    return json.load(urllib.request.urlopen(request, timeout=20))
 results = get("/api/suggest?limit=1&q=" + urllib.parse.quote(word)).get("results", [])
 entry = get("/api/entry/" + str(results[0]["id"])) if results else {}
 print("components:", entry.get("components"))
