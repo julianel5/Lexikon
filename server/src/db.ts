@@ -183,6 +183,9 @@ const entryStmt = db.prepare<[number], { data: string; freq: number; freq_rank: 
 );
 const countStmt = db.prepare<[], { c: number }>("SELECT count(*) AS c FROM entries");
 const keysStmt = db.prepare<[], { c: number }>("SELECT count(*) AS c FROM search_keys");
+const sitemapStmt = db.prepare<[number, number], { id: number; word: string }>(
+  "SELECT id, word FROM entries ORDER BY id LIMIT ? OFFSET ?",
+);
 
 /** Key that no search key can have: used when the query has no single English word. */
 const NO_KEY = "\u0000";
@@ -438,6 +441,19 @@ export function getEntry(id: number): Record<string, unknown> | null {
 const frequencyEntries = hasFreq
   ? db.prepare<[], { c: number }>("SELECT count(*) AS c FROM entries WHERE freq > 0").get()!.c
   : 0;
+
+/** Entry count: how many URLs the sitemap has to page through. */
+export function entryCount(): number {
+  return countStmt.get()!.c;
+}
+
+/**
+ * One page of (id, word) in id order. Ids are stable, so pages cannot overlap
+ * or shift between requests, and LIMIT/OFFSET keep the scan bounded.
+ */
+export function sitemapPage(limit: number, offset: number): { id: number; word: string }[] {
+  return sitemapStmt.all(limit, offset);
+}
 
 export function stats(): {
   entries: number;

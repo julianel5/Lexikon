@@ -26,6 +26,9 @@ behaviour).
 - Entries whose pronunciation is missing from the main dump get an IPA from the German Wiktionary:
   a new optional `--ipa-db` step (`ingest/extract_ipa.py`) fills them, so words like *schleißen*
   now show a phonetic transcription (~16,000 entries, #73).
+- Sitemaps for search engines: `GET /api/sitemap.xml` is an index over files of up to 50,000 entry
+  URLs each (`GET /api/sitemap/page/{n}`), and `robots.txt` references it. The site is a
+  single-page app, so the entry pages are listed from the API, which is what has the database.
 
 ### Fixed
 

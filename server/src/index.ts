@@ -4,6 +4,8 @@
  *   GET /api/health          -> { status, entries, searchKeys }
  *   GET /api/suggest?q=...   -> folded (exact/translit/strip) lookup, ranked
  *   GET /api/entry/:id       -> full entry JSON (data column)
+ *   GET /api/sitemap.xml     -> sitemap index for search engines
+ *   GET /api/sitemap/page/:n -> one page of entry URLs (XML)
  *
  * Read-only, CORS-enabled for the Vite dev server.
  */
@@ -12,9 +14,10 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { autocomplete, getEntry, stats, suggest, textLookup } from "./db.js";
+import { autocomplete, entryCount, getEntry, sitemapPage, stats, suggest, textLookup } from "./db.js";
 import { analyzeText, MAX_TEXT_LENGTH } from "./parse.js";
 import { foldQuery } from "./fold.js";
+import { SITEMAP_PAGE_SIZE, buildSitemapIndex, buildSitemapPage, sitemapPageCount } from "./sitemap.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 const HOST = process.env.HOST ?? "0.0.0.0";
@@ -50,6 +53,8 @@ app.get("/", (c) =>
       "/api/autocomplete?q=",
       "POST /api/parse",
       "/api/entry/:id",
+      "/api/sitemap.xml",
+      "/api/sitemap/page/:page",
     ],
   }),
 );
@@ -118,6 +123,31 @@ app.get("/api/entry/:id", (c) => {
     return c.json({ error: "entry not found", id: Number(raw) }, 404);
   }
   return c.json(entry);
+});
+
+// Sitemaps for search engines (robots.txt points at them). The site is a single-page app: an
+// entry page only exists as data, so it is listed straight from the database, at most 50,000
+// URLs per file, which is the limit of the sitemap protocol.
+app.get("/api/sitemap.xml", (c) =>
+  c.body(buildSitemapIndex(sitemapPageCount(entryCount())), 200, {
+    "Content-Type": "application/xml; charset=utf-8",
+  }),
+);
+
+app.get("/api/sitemap/page/:page", (c) => {
+  const raw = c.req.param("page");
+  if (!/^\d+$/.test(raw)) {
+    return c.json({ error: "page must be a non-negative integer" }, 400);
+  }
+  const page = Number(raw);
+  // The range is checked before multiplying, so a huge number can never become a huge OFFSET.
+  if (page >= sitemapPageCount(entryCount())) {
+    return c.json({ error: "page not found", page }, 404);
+  }
+  const entries = sitemapPage(SITEMAP_PAGE_SIZE, page * SITEMAP_PAGE_SIZE);
+  return c.body(buildSitemapPage(entries), 200, {
+    "Content-Type": "application/xml; charset=utf-8",
+  });
 });
 
 app.notFound((c) => c.json({ error: "not found", path: c.req.path }, 404));

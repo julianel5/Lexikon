@@ -34,7 +34,9 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # There is no sitemap: without this the single-page fallback would answer it with the home page
+    # The sitemaps are served by the API and referenced in robots.txt. Without this location the
+    # single-page fallback would answer with the home page, which a crawler would read as a
+    # broken, empty sitemap.
     location = /sitemap.xml {
         return 404;
     }

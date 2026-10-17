@@ -311,6 +311,17 @@ Returns `404` for an unknown id and `400` for a non-numeric id.
 curl "http://localhost:3000/api/entry/866"
 ```
 
+### `GET /api/sitemap.xml`
+
+Sitemap index for search engines (XML), pointing at `GET /api/sitemap/page/{n}` — one file per
+50,000 URLs, each listing `https://lexikon.moe/entry/{id}/{word}`. The site is a single-page app,
+so entry pages are rendered from the API's data: `robots.txt` references this index, which is how
+crawlers discover them. A non-numeric page returns `400`, a page past the end `404`.
+
+```bash
+curl "http://localhost:3000/api/sitemap.xml"
+```
+
 ## Configuration
 
 ### Server (`server/`)
