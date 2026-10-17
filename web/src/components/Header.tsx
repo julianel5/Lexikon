@@ -32,7 +32,8 @@ export function Header({ onHome, onSearch }: HeaderProps) {
             type="button"
             onClick={onSearch}
             aria-label="Search words"
-            title="Search words"
+            title="Search words (/)"
+            aria-keyshortcuts="/"
             className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-slate-700/60 bg-slate-800/40 text-slate-300 transition-colors hover:border-violet-500/50 hover:text-violet-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
           >
             <svg
