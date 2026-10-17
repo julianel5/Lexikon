@@ -370,8 +370,8 @@ Known limits, roughly in the order they would be worth fixing:
 
 - **Personal pronouns are still ambiguous**: Wiktionary lists the same table in every one of them,
   so *mir* or *ihm* do not always get their lemma (*ich*, *er*) first.
-- **Frequencies are not shown yet**: the API returns them, but the interface has no "common word"
-  badge or filter.
+- **No "common words" filter yet**: the interface shows the frequency rank of every word (`#349`),
+  but you cannot filter or sort by it.
 - **Separable verbs** (*ich stehe um 7 Uhr auf* → aufstehen) are not recognised.
 - **Multi-word expressions** are only found when the whole phrase is a dictionary entry.
 - **English queries are not lemmatized** (`went` does not find *gehen*).

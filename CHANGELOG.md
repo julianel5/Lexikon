@@ -13,6 +13,7 @@ behaviour).
 - Word frequencies in the ingest: `--freq` reads a Leipzig Corpora Collection word list and stores,
   per entry, how often its headword and inflected forms occur (`entries.freq`, `entries.freq_rank`,
   and `autocomplete.freq`). It is optional.
+- The frequency rank of a word (`#349`, 1 = most frequent) is shown on entry pages and search results.
 - The API uses the frequencies when the database has them: `/api/parse` ranks the candidate entries
   of a word by how common they are (so *Danach* is *danach* and not a form of *nach*, and *meinen*
   in *meinen Freunden* is the possessive), `/api/suggest` and `/api/autocomplete` put common words

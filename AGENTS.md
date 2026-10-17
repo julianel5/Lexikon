@@ -22,7 +22,7 @@ autocomplete, sentence segmentation with lemma resolution and compound splitting
 (`POST /api/parse`), entry pages with IPA, audio, grammar tables, relations, light/dark theme,
 shareable URLs.
 Word frequencies exist in the data and the API (optional `--freq` in the ingest, used to rank text analysis, suggestions and
-autocomplete) but are not shown in the UI yet. Not implemented (listed in the README roadmap, do not assume they exist):
+autocomplete) and shown as a rank label (`#349`) in the UI; there is no filter by frequency yet. Not implemented (listed in the README roadmap, do not assume they exist):
 separable-verb recognition, multi-word expressions, English lemmatization, Anki export, example
 sentences from other corpora. There is no user system and no write API.
 
