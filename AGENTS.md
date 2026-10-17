@@ -305,9 +305,3 @@ Confirmed (CONTRIBUTING.md, `.github/`):
 Ask before irreversible or production-affecting actions, licence-sensitive choices, and decisions
 that need information you cannot find in the repo. Do not ask about details you can determine
 from the code.
-
-## Known documentation drift
-
-`CONTRIBUTING.md` ("Project layout") and the PR template still describe an older layout (no
-`parse.ts`, `english.ts` or `SentenceView`; the folding test list is incomplete). When in doubt,
-trust the code and the CI workflows over those descriptions.
