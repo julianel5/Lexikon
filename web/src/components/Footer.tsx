@@ -15,8 +15,8 @@ const iconLink =
 export function Footer() {
   return (
     <footer className="border-t border-slate-800/60 bg-slate-900/40">
-      <div className="mx-auto flex w-full max-w-2xl items-start justify-between gap-4 px-4 py-8">
-        <div className="min-w-0 space-y-2 text-xs text-slate-500">
+      <div className="mx-auto flex w-full max-w-5xl items-start justify-between gap-4 px-4 py-5">
+        <div className="min-w-0 space-y-1 text-xs leading-relaxed text-slate-500">
           <p>
             Site made by:{' '}
             <a
@@ -35,6 +35,28 @@ export function Footer() {
               className="text-slate-300 hover:text-violet-400 hover:underline"
             >
               Frodouwu
+            </a>
+            <span aria-hidden="true" className="hidden sm:inline">
+              {' · '}
+            </span>
+            <br className="sm:hidden" />
+            Inspired by{' '}
+            <a
+              href={JITEN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={textLink}
+            >
+              Jiten
+            </a>
+            , created by{' '}
+            <a
+              href={SIRUSH_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={textLink}
+            >
+              Sirush
             </a>
           </p>
           <p>
@@ -85,30 +107,9 @@ export function Footer() {
             </a>
             .
           </p>
-          <p>
-            Inspired by{' '}
-            <a
-              href={JITEN_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={textLink}
-            >
-              Jiten
-            </a>
-            , created by{' '}
-            <a
-              href={SIRUSH_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={textLink}
-            >
-              Sirush
-            </a>
-            .
-          </p>
         </div>
 
-        <div className="-mt-2 flex shrink-0 items-center">
+        <div className="-mt-2.5 flex shrink-0 items-center">
           <a
             href={REPO_URL}
             target="_blank"
