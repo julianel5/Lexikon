@@ -21,6 +21,12 @@ interface SearchProps {
   onSelect: (id: number) => void
 }
 
+/**
+ * The suggestions help while you type. When you stop (to read the results under them) they get
+ * out of the way after this long; typing again brings them back.
+ */
+const SUGGESTIONS_IDLE_MS = 1500
+
 export function Search({
   query,
   debouncedQuery,
@@ -55,13 +61,21 @@ export function Search({
   // --- autocomplete ----------------------------------------------------- //
   const suggestions = useAutocomplete(query)
   const [focused, setFocused] = useState(true)
-  // The query for which the dropdown was dismissed (pick / Esc); typing
-  // anything else re-opens it.
-  const [dismissedFor, setDismissedFor] = useState<string | null>(null)
+  // The query for which the dropdown was dismissed (pick / Esc / Enter / a pause); typing
+  // anything else re-opens it. A search that is already in the page (a link, a reload) starts
+  // dismissed: the results are what you came for.
+  const [dismissedFor, setDismissedFor] = useState<string | null>(query)
   const [activeSuggestion, setActiveSuggestion] = useState(-1)
 
   const dropdownOpen =
     focused && hasQuery && suggestions.length > 0 && dismissedFor !== query
+
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const timer = window.setTimeout(() => setDismissedFor(query), SUGGESTIONS_IDLE_MS)
+    return () => window.clearTimeout(timer)
+    // restart the countdown whenever the user types or moves through the suggestions
+  }, [dropdownOpen, query, suggestions, activeSuggestion])
 
   // Reset the keyboard highlight whenever the query or results change.
   useEffect(() => {
@@ -94,6 +108,10 @@ export function Search({
         event.preventDefault()
         pickSuggestion(suggestions[activeSuggestion]!.word)
         return
+      }
+      if (event.key === 'Enter') {
+        // searching: the results are what matters now, not the suggestions
+        setDismissedFor(query)
       }
       if (event.key === 'Escape') {
         event.preventDefault()

@@ -18,6 +18,9 @@ behaviour).
 - The site moved to its own domain: <https://lexikon.moe>, with the API at `api.lexikon.moe`,
   behind Cloudflare (caching of read-only API responses, a per-IP rate limit, `www` redirect).
   The old Railway URL of the web app redirects; the API one keeps working.
+- The search suggestions no longer cover the results: they get out of the way when you pause
+  typing (after 1.5 s), when you press Enter, and when a page is opened with a search already in it.
+  Typing brings them back.
 
 ### Added
 
