@@ -22,16 +22,19 @@ autocomplete, sentence segmentation with lemma resolution and compound splitting
 (`POST /api/parse`), entry pages with IPA, audio, grammar tables, relations, light/dark theme,
 shareable URLs.
 Word frequencies exist in the data and the API (optional `--freq` in the ingest, used to rank text analysis, suggestions and
-autocomplete) and shown as a rank label (`#349`) in the UI; there is no filter by frequency yet. Not implemented (listed in the README roadmap, do not assume they exist):
-separable-verb recognition, multi-word expressions, English lemmatization, Anki export, example
-sentences from other corpora. There is no user system and no write API.
+autocomplete) and shown as a rank label (`#349`) in the UI; there is no filter by frequency yet. Separable verbs are recognised in the sentence view only when the particle follows the verb
+directly (*stehe auf* → aufstehen; a preposition with its object, *stehe auf dem Tisch*, is not a
+match). Not implemented (listed in the README roadmap, do not assume they exist): separable verbs
+with words in between, multi-word expressions beyond dictionary phrases, English lemmatization,
+Anki export, example sentences from other corpora. There is no user system and no write API.
 
 ## 2. Repository architecture
 
 ```
 ingest/    Python (stdlib, optional tqdm): kaikki.org JSONL dump -> SQLite
 server/    Node + Hono + better-sqlite3, read-only API over that SQLite file
-web/       React 18 + Vite + TypeScript + Tailwind v4 single-page app (static in production)
+web/       React 18 + Vite + TypeScript + Tailwind v4 single-page app (static in production);
+           web/public holds the icons, manifest, robots.txt and the social preview image
 deploy/    nginx template used by web/Dockerfile
 data/      git-ignored build output (data/raw/*, data/*.db)
 docs/      README screenshots
@@ -139,8 +142,9 @@ This replaces any Japanese-specific assumptions: the data is German Wiktionary.
 
 **Current behaviour and limits (confirmed, README roadmap):** frequencies are optional (a database built without `--freq`
 has `freq = 0` everywhere and the server must keep working and ranking as before), personal pronouns are
-still ambiguous (every pronoun lists the same table, so *mir* does not always get *ich* first), no
-separable-verb detection, English queries are not lemmatized. Do not describe these as supported.
+still ambiguous (every pronoun lists the same table, so *mir* does not always get *ich* first),
+separable verbs are found only when the parts are adjacent, multi-word entries have no frequency,
+English queries are not lemmatized. Do not describe these as supported.
 Other additions are **proposals**: discuss them with the maintainers first.
 
 **Search invariants (confirmed):** German matches (kinds 0–2) always rank before English ones
@@ -195,7 +199,7 @@ prefix lookup. Kind 3 `exact_form` is a relevance score 1–4 (see README, "How 
 ## 8. Testing and quality assurance
 
 Frameworks (confirmed): `node:test` via `tsx` for the server (`server/test/*.test.ts`:
-`fold`, `parse`), `unittest` for the ingest (`ingest/test_fold.py`). There is **no web test
+`fold`, `parse`), `unittest` for the ingest (`ingest/test_*.py`: folding, components, frequency). There is **no web test
 suite**; for the UI, type check, lint, build and check manually.
 
 - Logic in `parse.ts` is tested with an injected fake `Lookup`; follow that pattern so tests need
@@ -248,6 +252,19 @@ React 18 function components, hooks in `web/src/lib/`, Tailwind utility classes.
   restarting services) are made by or with the maintainers.
 - Security vulnerabilities go through [SECURITY.md](SECURITY.md), not public issues.
 
+**Production setup (confirmed, README "Deployment"):** Railway services `web` and `api` deploy from
+`main`; Cloudflare (free plan) is in front of `lexikon.moe` and `api.lexikon.moe`.
+
+- Cloudflare caches `GET /api/*` (except `/api/health`) for hours and by file extension, so after
+  a database upload or a change to a static file such as `robots.txt` the cache may need a purge.
+  `CORS_ORIGIN` holds a single origin, because Cloudflare ignores `Vary: Origin`.
+- Cloudflare's Browser Integrity Check blocks the default Python/urllib User-Agent: scripts that
+  call the live site send their own (`deploy/deploy-db.sh` does).
+- `deploy/nginx.conf.template`: nginx's `mime.types` lacks `.webmanifest` (own `location`), and a
+  location with its own `add_header` does not inherit the server-level security headers, so
+  `/assets/` repeats them. Test a change to the template with a real nginx, not by reading it.
+- `/api/health` is public: it must not expose paths or other internals.
+
 ## 11. Git and contribution practices
 
 Confirmed (CONTRIBUTING.md, `.github/`):
@@ -260,14 +277,17 @@ Confirmed (CONTRIBUTING.md, `.github/`):
 - **AI disclosure:** commits made with an assistant end with `Assisted-by: AGENT:MODEL`
   (for example `Assisted-by: Claude Code:claude-sonnet-5-5`), and the PR description **ends**
   with the same line (CI check `ai disclosure`). Use the PR template sections (What, Why,
-  Testing, Checklist, AI assistance).
+  Testing, Checklist, AI assistance). Do not add a "Generated with Claude Code" footer or any
+  other promotional line to PR descriptions (owner's request); the `Assisted-by:` line is the only
+  attribution there, and it stays last.
 - Required CI checks: `web`, `server`, `ingest`, `ingest tests`, `server tests`,
   `conventional title`, `ai disclosure`.
 - Keep a change focused; send a needed refactor as its own PR. Update README, CONTRIBUTING or
   CHANGELOG when behaviour or setup changes (the CHANGELOG uses "Keep a Changelog" under
   Unreleased).
 - Do not touch changes you did not make, and never revert someone else's work. Do not merge a PR
-  or push to `main` unless the maintainer asks.
+  or push to `main` unless the maintainer asks ("mergeá el N"). Pull requests from first-time
+  outside contributors need a maintainer to approve their workflow runs.
 
 ## 12. Agent operating principles
 
