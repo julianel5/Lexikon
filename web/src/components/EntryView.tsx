@@ -124,7 +124,7 @@ export function EntryDetails({
   const germanVoices = voices.filter((v) =>
     v.lang.replace('_', '-').toLowerCase().startsWith('de'),
   )
-  const clips = (entry.audio ?? []).filter((c) => c.mp3 || c.ogg)
+  const clips = (entry.audio ?? []).filter((c) => c.mp3 || c.ogg || c.wav)
   const canSpeak = germanVoices.length > 0
   // A recording always works; TTS only if a German voice is installed.
   // Never speak with a non-German voice: it mispronounces (Mädchen -> "machen").
@@ -166,7 +166,7 @@ export function EntryDetails({
 
     // Prefer a real recording; fall back to a German TTS voice if one exists.
     const clip = clips[0]
-    const src = clip?.mp3 ?? clip?.ogg
+    const src = clip?.mp3 ?? clip?.ogg ?? clip?.wav
     if (!src) {
       speak()
       return

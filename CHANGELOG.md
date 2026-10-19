@@ -34,6 +34,10 @@ behaviour).
 - Sitemaps for search engines: `GET /api/sitemap.xml` is an index over files of up to 50,000 entry
   URLs each (`GET /api/sitemap/page/{n}`), and `robots.txt` references it. The site is a
   single-page app, so the entry pages are listed from the API, which is what has the database.
+- Optional Commons audio: `ingest/extract_audio.py` collects the Lingua Libre recordings (CC BY-SA
+  4.0, Wikimedia Commons) of one or more speakers, and `ingest.py --audio-db` gives a recording to
+  entries the dump left without one, never overriding an existing clip. The player now also plays
+  the `.wav` clips these uploads are, which Commons stores without an MP3/Ogg transcode.
 
 ### Fixed
 

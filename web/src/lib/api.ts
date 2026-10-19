@@ -50,6 +50,8 @@ export interface Sound {
 export interface AudioClip {
   mp3?: string
   ogg?: string
+  /** Lingua Libre uploads a WAV and Commons stores no transcode; WebAudio decodes it. */
+  wav?: string
   tags?: string[]
 }
 
