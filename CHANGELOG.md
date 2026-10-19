@@ -37,6 +37,10 @@ behaviour).
 
 ### Fixed
 
+- The "Word breakdown" parts of a compound or derived word no longer open the wrong entry. Parts that
+  are not entries of their own (stems and affixes such as *besonder* or *-s* in *besonders*) are shown
+  as plain text instead of a link, and real parts open their entry by id, so e.g. *ig* in *vielfältig*
+  no longer lands on *Immunglobulin*.
 - Separable verbs no longer join a preposition with its object (*stehe auf dem Tisch*, *kommt mit
   Freunden*, *fährt mit mir* are not *aufstehen*, *mitkommen*, *mitfahren*), and are found again when a comma
   or a full stop follows the particle (*Ich stehe auf, weil…*).
