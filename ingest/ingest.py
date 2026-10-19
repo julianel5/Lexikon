@@ -613,6 +613,17 @@ def _build_record(entry: dict, word: str, pos: str, senses: list[dict]) -> dict:
 # Pronunciation enrichment (optional)
 # --------------------------------------------------------------------------- #
 
+# de.wiktionary writes "[…]" for a word whose pronunciation is unknown. That is not a
+# transcription, so it must never be pasted into an entry that has none; a real IPA
+# value always contains at least one letter (a sound), while a placeholder does not.
+_IPA_LETTER_RE = re.compile(r"[^\W\d_]")
+
+
+def _is_usable_ipa(ipa: str) -> bool:
+    """True for a real transcription, false for placeholders like ``[…]``."""
+    return bool(_IPA_LETTER_RE.search(ipa))
+
+
 def load_ipa_map(path: Path) -> dict[tuple[str, str], list[str]]:
     """Read a ``(word, pos) -> [ipa, ...]`` map built by ``extract_ipa.py``.
 
@@ -625,7 +636,8 @@ def load_ipa_map(path: Path) -> dict[tuple[str, str], list[str]]:
         rows = conn.execute("SELECT word, pos, ipa FROM ipa ORDER BY word, pos, ipa")
         ipa_map: dict[tuple[str, str], list[str]] = {}
         for word, pos, ipa in rows:
-            ipa_map.setdefault((word, pos), []).append(ipa)
+            if _is_usable_ipa(ipa):
+                ipa_map.setdefault((word, pos), []).append(ipa)
     finally:
         conn.close()
     return ipa_map
@@ -643,6 +655,8 @@ def load_ipa_byword(path: Path) -> dict[str, list[str]]:
         # collect all ipas per word
         byword: dict[str, set[str]] = {}
         for word, pos, ipa in conn.execute("SELECT word, pos, ipa FROM ipa"):
+            if not _is_usable_ipa(ipa):
+                continue
             byword.setdefault(word, set()).add(ipa)
         # only keep unambiguous
         out: dict[str, list[str]] = {}

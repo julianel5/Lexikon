@@ -138,6 +138,59 @@ class ExtractTests(unittest.TestCase):
             self.assertEqual(byword, {"Einbahnstraße": ["[ˈaɪ̯nbɑːnˌʃtʁaːsə]"]})
 
 
+class PlaceholderTests(unittest.TestCase):
+    def test_loaders_drop_placeholder_ipa(self) -> None:
+        # de.wiktionary marks a word with no known pronunciation as "[…]"; it must
+        # not be attached as if it were a transcription.
+        de_rows = [
+            {"word": "FSK", "pos": "noun", "lang_code": "de", "sounds": [{"ipa": "[…]"}]},
+            {
+                "word": "Dezember",
+                "pos": "noun",
+                "lang_code": "de",
+                "sounds": [{"ipa": "[deˈtsɛmbɐ]"}],
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = Path(tmp) / "de.jsonl"
+            out = Path(tmp) / "ipa_de.db"
+            _write_jsonl(dump, de_rows)
+            # extract_ipa keeps the raw value; the loaders are the gate.
+            extract_ipa.extract(dump, out)
+
+            ipa_map = ingest.load_ipa_map(out)
+            self.assertNotIn(("FSK", "noun"), ipa_map)
+            self.assertEqual(ipa_map, {("Dezember", "noun"): ["[deˈtsɛmbɐ]"]})
+
+            byword = ingest.load_ipa_byword(out)
+            self.assertNotIn("FSK", byword)
+            self.assertEqual(byword, {"Dezember": ["[deˈtsɛmbɐ]"]})
+
+    def test_fill_never_pastes_a_placeholder(self) -> None:
+        de_rows = [{"word": "FSK", "pos": "noun", "lang_code": "de", "sounds": [{"ipa": "[…]"}]}]
+        en_rows = [
+            {
+                "word": "FSK",
+                "pos": "noun",
+                "lang_code": "de",
+                "senses": [{"glosses": ["FSK"]}],
+                "sounds": [{"audio": "De-FSK.ogg"}],
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            de_dump = Path(tmp) / "de.jsonl"
+            en_dump = Path(tmp) / "en.jsonl"
+            ipa_db = Path(tmp) / "ipa_de.db"
+            out = Path(tmp) / "dictionary.db"
+            _write_jsonl(de_dump, de_rows)
+            _write_jsonl(en_dump, en_rows)
+            extract_ipa.extract(de_dump, ipa_db)
+            stats = ingest.run(en_dump, out, 100, ipa_byword=ingest.load_ipa_byword(ipa_db))
+
+            self.assertEqual(stats["ipa_filled"], 0)
+            self.assertEqual(_sounds_of(out, "FSK", "noun"), [])
+
+
 class IngestFillTests(unittest.TestCase):
     def test_fills_missing_ipa_and_keeps_existing(self) -> None:
         en_rows = [

@@ -47,6 +47,8 @@ behaviour).
 - "Show full grammar" on an adjective no longer squeezes every form into the noun declension grid,
   repeating the same endings in one cell. Adjectives get their own tables, grouped by degree
   (positive/comparative/superlative) and inflection (strong/weak/mixed), each slot shown once.
+- The `--ipa-db` step no longer fills an entry with the German Wiktionary placeholder `[…]`, which
+  marks a word whose pronunciation is unknown; it is skipped, as it is not a transcription.
 
 ## [0.2.0] - 2026-10-17
 
