@@ -102,6 +102,41 @@ class ExtractTests(unittest.TestCase):
             self.assertNotIn(("f", "character"), ipa_map)
             self.assertNotIn(("in", "prep"), ipa_map)
 
+            byword = ingest.load_ipa_byword(out)
+            self.assertEqual(byword, {"schleißen": ["[ˈʃlaɪ̯sn̩]"]})
+
+
+    def test_byword_excludes_ambiguous_words(self) -> None:
+        de_rows = [
+            {
+                "word": "durchgehend",
+                "pos": "adj",
+                "lang_code": "de",
+                "sounds": [{"ipa": "[dʊʁçˈɡeːənt]"}],
+            },
+            {
+                "word": "durchgehend",
+                "pos": "adv",
+                "lang_code": "de",
+                "sounds": [{"ipa": "[dʊʁçˌɡeːənt]"}],
+            },
+            {
+                "word": "Einbahnstraße",
+                "pos": "noun",
+                "lang_code": "de",
+                "sounds": [{"ipa": "[ˈaɪ̯nbɑːnˌʃtʁaːsə]"}],
+            },
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = Path(tmp) / "de.jsonl"
+            out = Path(tmp) / "ipa_de.db"
+            _write_jsonl(dump, de_rows)
+            extract_ipa.extract(dump, out)
+            byword = ingest.load_ipa_byword(out)
+
+            self.assertNotIn("durchgehend", byword)
+            self.assertEqual(byword, {"Einbahnstraße": ["[ˈaɪ̯nbɑːnˌʃtʁaːsə]"]})
+
 
 class IngestFillTests(unittest.TestCase):
     def test_fills_missing_ipa_and_keeps_existing(self) -> None:
@@ -136,6 +171,50 @@ class IngestFillTests(unittest.TestCase):
                 _sounds_of(out, "schleißen", "verb"), [{"ipa": "[ˈʃlaɪ̯sn̩]"}]
             )
             self.assertEqual(_sounds_of(out, "schließen", "verb"), [{"ipa": "/ˈʃliːsn̩/"}])
+
+    def test_word_only_fallback_fills_unambiguous(self) -> None:
+        en_rows = [
+            {
+                "word": "Eiffelturm",
+                "pos": "noun",
+                "lang_code": "de",
+                "senses": [{"glosses": ["Eiffel Tower"]}],
+                "sounds": [{"audio": "De-Eiffelturm.ogg"}],
+            },
+        ]
+        ipa_byword = {"Eiffelturm": ["[ˈaɪ̯fl̩ˌtʊʁm]"]}
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = Path(tmp) / "en.jsonl"
+            out = Path(tmp) / "dictionary.db"
+            _write_jsonl(dump, en_rows)
+            stats = ingest.run(dump, out, 100, ipa_byword=ipa_byword)
+
+            self.assertEqual(stats["ipa_filled"], 1)
+            self.assertEqual(
+                _sounds_of(out, "Eiffelturm", "noun"),
+                [{"ipa": "[ˈaɪ̯fl̩ˌtʊʁm]"}],
+            )
+
+    def test_word_only_fallback_skips_ambiguous(self) -> None:
+        en_rows = [
+            {
+                "word": "durchgehend",
+                "pos": "adj",
+                "lang_code": "de",
+                "senses": [{"glosses": ["continuous"]}],
+                "sounds": [{"audio": "De-durchgehend.ogg"}],
+            },
+        ]
+        # multi-IPA in ipa_de: excluded from word-only map by load_ipa_byword
+        ipa_byword: dict[str, list[str]] = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            dump = Path(tmp) / "en.jsonl"
+            out = Path(tmp) / "dictionary.db"
+            _write_jsonl(dump, en_rows)
+            stats = ingest.run(dump, out, 100, ipa_byword=ipa_byword)
+
+            self.assertEqual(stats["ipa_filled"], 0)
+            self.assertEqual(_sounds_of(out, "durchgehend", "adj"), [])
 
     def test_no_map_leaves_sounds_untouched(self) -> None:
         en_rows = [

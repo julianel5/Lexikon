@@ -115,7 +115,10 @@ page only carried an audio file (e.g. *schleißen*, which does have a transcript
 Wiktionary). To fill those gaps, `ingest/extract_ipa.py` reads the German Wiktionary edition
 published by kaikki.org and writes a compact `(word, pos) → IPA` map (see
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)); `ingest.py --ipa-db` then gives those entries a
-pronunciation, leaving the ones that already have one untouched:
+pronunciation, leaving the ones that already have one untouched. When the part of speech differs
+between the two editions (e.g. *FSK* is a noun on en.wiktionary and an abbreviation on de.wiktionary),
+the ingest falls back to a word-only lookup, but only if that word has a single pronunciation across
+all parts of speech — nothing ambiguous is guessed:
 
 ```bash
 curl -L -o data/raw/kaikki.org-dictionary-Deutsch.jsonl \

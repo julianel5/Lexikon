@@ -612,6 +612,7 @@ def _build_record(entry: dict, word: str, pos: str, senses: list[dict]) -> dict:
 # --------------------------------------------------------------------------- #
 # Pronunciation enrichment (optional)
 # --------------------------------------------------------------------------- #
+
 def load_ipa_map(path: Path) -> dict[tuple[str, str], list[str]]:
     """Read a ``(word, pos) -> [ipa, ...]`` map built by ``extract_ipa.py``.
 
@@ -628,6 +629,29 @@ def load_ipa_map(path: Path) -> dict[tuple[str, str], list[str]]:
     finally:
         conn.close()
     return ipa_map
+
+
+def load_ipa_byword(path: Path) -> dict[str, list[str]]:
+    """Return ``word -> [unique ipa]`` from the de.wiktionary IPA map.
+
+    Conservative fallback: only attach if the word maps to exactly one distinct
+    IPA form across all parts of speech (no homograph ambiguity). This uses
+    data that already exist in ``ipa_de.db`` built by ``extract_ipa.py``.
+    """
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        # collect all ipas per word
+        byword: dict[str, set[str]] = {}
+        for word, pos, ipa in conn.execute("SELECT word, pos, ipa FROM ipa"):
+            byword.setdefault(word, set()).add(ipa)
+        # only keep unambiguous
+        out: dict[str, list[str]] = {}
+        for word, ipas in byword.items():
+            if len(ipas) == 1:
+                out[word] = sorted(ipas)
+    finally:
+        conn.close()
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -826,6 +850,7 @@ def run(
     batch_size: int,
     frequencies: dict[str, int] | None = None,
     ipa_map: dict[tuple[str, str], list[str]] | None = None,
+    ipa_byword: dict[str, list[str]] | None = None,
 ) -> dict:
     file_size = input_path.stat().st_size
     conn = _connect(output_path)
@@ -917,8 +942,12 @@ def run(
 
             next_id += 1
             record = _build_record(entry, word, pos, senses)
-            if ipa_map is not None and "sounds" not in record:
-                ipas = ipa_map.get((word, pos))
+            if "sounds" not in record:
+                ipas = None
+                if ipa_map is not None:
+                    ipas = ipa_map.get((word, pos))
+                if not ipas and ipa_byword is not None:
+                    ipas = ipa_byword.get(word)
                 if ipas:
                     record["sounds"] = [{"ipa": ipa} for ipa in ipas]
                     stats["ipa_filled"] += 1
@@ -1123,13 +1152,15 @@ def main(argv: list[str] | None = None) -> None:
         except (ValueError, OSError, zipfile.BadZipFile) as error:
             parser.error(str(error))
     ipa_map = None
+    ipa_byword = None
     if args.ipa_db is not None:
         print(f"Reading  {args.ipa_db} (IPA map)")
         try:
             ipa_map = load_ipa_map(args.ipa_db)
+            ipa_byword = load_ipa_byword(args.ipa_db)
         except (ValueError, OSError, sqlite3.Error) as error:
             parser.error(str(error))
-    stats = run(args.input, args.output, args.batch, frequencies, ipa_map)
+    stats = run(args.input, args.output, args.batch, frequencies, ipa_map, ipa_byword)
     report(stats, args.output)
     if not args.no_verify:
         verify(args.output)
