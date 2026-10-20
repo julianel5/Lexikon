@@ -50,6 +50,8 @@ export interface Sound {
 export interface AudioClip {
   mp3?: string
   ogg?: string
+  /** Lingua Libre uploads a WAV and Commons stores no transcode; WebAudio decodes it. */
+  wav?: string
   tags?: string[]
 }
 
@@ -71,6 +73,12 @@ export type RelationKey =
   | 'meronyms'
   | 'coordinate_terms'
 
+/** A part a compound word is made of; `entryId` is null for affixes and stems. */
+export interface Component {
+  word: string
+  entryId: number | null
+}
+
 export interface Entry {
   id: number
   word: string
@@ -82,7 +90,7 @@ export interface Entry {
   senses?: Sense[]
   sounds?: Sound[]
   audio?: AudioClip[]
-  components?: string[]
+  components?: Component[]
   auxiliary?: string
   separable?: boolean
   synonyms?: RelationItem[]

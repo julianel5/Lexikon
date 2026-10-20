@@ -10,6 +10,7 @@ Usage:
     python ingest.py data/raw/kaikki.org-dictionary-German.jsonl -o data/dictionary.db
     python ingest.py <dump> -o data/dictionary.db --freq data/raw/deu_web-words.txt   # optional
     python ingest.py <dump> -o data/dictionary.db --ipa-db data/ipa_de.db             # optional
+    python ingest.py <dump> -o data/dictionary.db --audio-db data/audio_commons.db     # optional
 
 Schema:
     entries(id INTEGER PRIMARY KEY, word TEXT, pos TEXT, gender TEXT, data TEXT /* JSON */,
@@ -610,6 +611,34 @@ def _build_record(entry: dict, word: str, pos: str, senses: list[dict]) -> dict:
 
 
 # --------------------------------------------------------------------------- #
+# Commons audio enrichment (optional)
+# --------------------------------------------------------------------------- #
+
+
+def load_audio_map(path: Path) -> dict[str, dict[str, str]]:
+    """Return ``word -> {format: url}`` from the Commons audio map.
+
+    Built by ``extract_audio.py`` (Lingua Libre recordings). Only URLs under
+    ``AUDIO_URL_PREFIX`` are kept, so the ingest never points at another host.
+    Used to give a recording to entries the dump left without one. The map is
+    opened read-only: the build never writes to it.
+    """
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute("SELECT word, format, url FROM audio ORDER BY word, format")
+        audio_map: dict[str, dict[str, str]] = {}
+        for word, fmt, url in rows:
+            if not isinstance(url, str) or not url.startswith(AUDIO_URL_PREFIX):
+                continue
+            if not isinstance(fmt, str) or not fmt:
+                continue
+            audio_map.setdefault(word, {})[fmt] = url
+    finally:
+        conn.close()
+    return audio_map
+
+
+# --------------------------------------------------------------------------- #
 # Pronunciation enrichment (optional)
 # --------------------------------------------------------------------------- #
 
@@ -865,6 +894,7 @@ def run(
     frequencies: dict[str, int] | None = None,
     ipa_map: dict[tuple[str, str], list[str]] | None = None,
     ipa_byword: dict[str, list[str]] | None = None,
+    audio_map: dict[str, dict[str, str]] | None = None,
 ) -> dict:
     file_size = input_path.stat().st_size
     conn = _connect(output_path)
@@ -881,6 +911,7 @@ def run(
         "redirects_resolved": 0,
         "redirects_unresolved": 0,
         "ipa_filled": 0,
+        "audio_filled": 0,
     }
     # (inflected form, lemma word, lemma pos) -> None; dict = ordered de-dup set
     redirects: dict[tuple[str, str, str], None] = {}
@@ -965,6 +996,11 @@ def run(
                 if ipas:
                     record["sounds"] = [{"ipa": ipa} for ipa in ipas]
                     stats["ipa_filled"] += 1
+            if "audio" not in record and audio_map is not None:
+                clip = audio_map.get(word)
+                if clip:
+                    record["audio"] = [dict(clip)]
+                    stats["audio_filled"] += 1
             entry_rows.append(
                 (
                     next_id,
@@ -1078,6 +1114,14 @@ def _ipa_line(stats: dict) -> str:
     )
 
 
+def _audio_line(stats: dict) -> str:
+    if not stats.get("audio_filled"):
+        return ""
+    return (
+        f"  audio filled : {stats['audio_filled']:,} entries given a Commons recording\n"
+    )
+
+
 def report(stats: dict, output_path: Path) -> None:
     redirects = (
         f"{stats['form_pages']:,} redirected "
@@ -1097,6 +1141,7 @@ def report(stats: dict, output_path: Path) -> None:
         f"  skipped      : {skipped}\n"
         f"{_frequency_line(stats)}"
         f"{_ipa_line(stats)}"
+        f"{_audio_line(stats)}"
         f"  integrity    : {stats['integrity']}\n"
         f"  output       : {output_path} ({stats['db_size'] / 1e6:,.1f} MB)"
     )
@@ -1144,6 +1189,13 @@ def main(argv: list[str] | None = None) -> None:
         help="optional (word,pos)->IPA map built by extract_ipa.py from the de.wiktionary "
         "dump; fills entries whose source dump has no pronunciation",
     )
+    parser.add_argument(
+        "--audio-db",
+        type=Path,
+        default=None,
+        help="optional word->recording map built by extract_audio.py from Wikimedia "
+        "Commons (Lingua Libre); gives a recording to entries with none",
+    )
     parser.add_argument("--no-verify", action="store_true", help="skip post-build lookups")
     args = parser.parse_args(argv)
 
@@ -1155,6 +1207,8 @@ def main(argv: list[str] | None = None) -> None:
         parser.error(f"frequency list not found: {args.freq}")
     if args.ipa_db is not None and not args.ipa_db.is_file():
         parser.error(f"IPA map not found: {args.ipa_db}")
+    if args.audio_db is not None and not args.audio_db.is_file():
+        parser.error(f"audio map not found: {args.audio_db}")
 
     print(f"Reading  {args.input}")
     print(f"Writing  {args.output}")
@@ -1174,7 +1228,22 @@ def main(argv: list[str] | None = None) -> None:
             ipa_byword = load_ipa_byword(args.ipa_db)
         except (ValueError, OSError, sqlite3.Error) as error:
             parser.error(str(error))
-    stats = run(args.input, args.output, args.batch, frequencies, ipa_map, ipa_byword)
+    audio_map = None
+    if args.audio_db is not None:
+        print(f"Reading  {args.audio_db} (audio map)")
+        try:
+            audio_map = load_audio_map(args.audio_db)
+        except (ValueError, OSError, sqlite3.Error) as error:
+            parser.error(str(error))
+    stats = run(
+        args.input,
+        args.output,
+        args.batch,
+        frequencies,
+        ipa_map,
+        ipa_byword,
+        audio_map,
+    )
     report(stats, args.output)
     if not args.no_verify:
         verify(args.output)

@@ -54,6 +54,12 @@ stored. The browser loads them directly from
 [Wikimedia Commons](https://commons.wikimedia.org/), where each file has its own licence (mostly
 CC BY-SA, CC BY or public domain) and author credit on its file page.
 
+Some recordings come from [Lingua Libre](https://lingualibre.org) volunteers. `ingest/extract_audio.py`
+reads their names from the Commons API and records the URL of each German clip (usually a `.wav`;
+Commons stores no transcode), keyed by the spoken word, so `ingest.py --audio-db` can give a
+recording to an entry that has none. Lingua Libre recordings are **CC BY-SA 4.0**; the speaker and
+the licence stay on the file page, which the site links to for credit.
+
 ## Icon
 
 The red book with an Eszett (`web/public/favicon.svg` and the files made from it) was drawn for this

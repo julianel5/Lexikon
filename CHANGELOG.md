@@ -34,9 +34,20 @@ behaviour).
 - Sitemaps for search engines: `GET /api/sitemap.xml` is an index over files of up to 50,000 entry
   URLs each (`GET /api/sitemap/page/{n}`), and `robots.txt` references it. The site is a
   single-page app, so the entry pages are listed from the API, which is what has the database.
+- Optional Commons audio: `ingest/extract_audio.py` collects the Lingua Libre recordings (CC BY-SA
+  4.0, Wikimedia Commons) of one or more speakers, and `ingest.py --audio-db` gives a recording to
+  entries the dump left without one, never overriding an existing clip. The player now also plays
+  the `.wav` clips these uploads are, which Commons stores without an MP3/Ogg transcode. New
+  recordings can be added to a finished database with `extract_audio.py --merge-into`, which patches
+  only the audio of entries that have none, without rebuilding the database (frequencies, keys and
+  IPA are left untouched).
 
 ### Fixed
 
+- The "Word breakdown" parts of a compound or derived word no longer open the wrong entry. Parts that
+  are not entries of their own (stems and affixes such as *besonder* or *-s* in *besonders*) are shown
+  as plain text instead of a link, and real parts open their entry by id, so e.g. *ig* in *vielfältig*
+  no longer lands on *Immunglobulin*.
 - Separable verbs no longer join a preposition with its object (*stehe auf dem Tisch*, *kommt mit
   Freunden*, *fährt mit mir* are not *aufstehen*, *mitkommen*, *mitfahren*), and are found again when a comma
   or a full stop follows the particle (*Ich stehe auf, weil…*).

@@ -93,6 +93,7 @@ Ingest options:
 | `-b, --batch` | rows per insert transaction | `5000` |
 | `--freq` | word frequency list (a Leipzig `*-words.txt` or a Yomitan frequency `.zip`), see below | none |
 | `--ipa-db` | an optional `(word, pos) → IPA` map built by `ingest/extract_ipa.py`, to fill entries whose dump has no pronunciation, see below | none |
+| `--audio-db` | an optional `word → recording` map built by `ingest/extract_audio.py` from Wikimedia Commons, to fill entries with no audio, see below | none |
 | `--no-verify` | skip post-build sample lookups | off |
 
 **Word frequencies (optional).** With `--freq` the ingest adds up, for every entry, how often its
@@ -128,6 +129,30 @@ python ingest/ingest.py data/raw/kaikki.org-dictionary-German.jsonl -o data/dict
 ```
 
 Without `--ipa-db` nothing changes.
+
+**Audio enrichment (optional).** The English Wiktionary dump only links the recordings its own
+pages carry, so the pronunciations volunteers upload to Wikimedia Commons for
+[Lingua Libre](https://lingualibre.org) are missing. `ingest/extract_audio.py` asks the Commons API
+for a speaker's files, reads the spoken word from the file name
+(`LL-Q188 (deu)-<speaker>-<word>.wav`) and writes a compact `word → URL` map (only URLs under
+`upload.wikimedia.org` are kept; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)). Pass
+`-o data/audio_commons.db` for several speakers to accumulate them in one map, then give a recording
+to entries the dump left without one:
+
+```bash
+python ingest/extract_audio.py --speaker NotoriousMonster -o data/audio_commons.db
+python ingest/ingest.py data/raw/kaikki.org-dictionary-German.jsonl -o data/dictionary.db \
+  --audio-db data/audio_commons.db
+```
+
+Existing clips are never overridden. To add the recordings of a new speaker later, `--merge-into`
+patches the finished database instead of rebuilding it, so frequencies, keys and IPA are untouched
+(stop the API first: it holds the database open):
+
+```bash
+python ingest/extract_audio.py --speaker AnotherSpeaker -o data/audio_commons.db \
+  --merge-into data/dictionary.db
+```
 
 ### 2. Run the API
 

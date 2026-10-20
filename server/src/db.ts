@@ -11,7 +11,7 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import { queryEnglishWords } from "./english.js";
 import type { Lookup, RawCandidate } from "./parse.js";
-import { foldQuery, kindName } from "./fold.js";
+import { exactKey, foldQuery, kindName } from "./fold.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_DB = path.resolve(HERE, "..", "..", "data", "dictionary.db");
@@ -429,12 +429,32 @@ export function suggest(query: string, limit = 25): SuggestOutcome {
   return { effectiveQuery: trimmed, reflexFallback: false, results: direct };
 }
 
+/**
+ * A component that is a headword of its own ("Wasser" in Wasserflasche), or null when it is only
+ * a stem or an affix ("besonder", "-s" in besonders). Resolved like a compound part in parse.ts:
+ * the word has to be an entry's headword, not one of its inflected forms.
+ */
+function componentEntryId(word: string): number | null {
+  const row = headwordStmt.get({ key: exactKey(word) });
+  return row ? row.id : null;
+}
+
+/** Turn the stored component words (strings) into words plus the entry each one names. */
+function resolveComponents(value: unknown): { word: string; entryId: number | null }[] | null {
+  if (!Array.isArray(value)) return null;
+  return value.map((raw) => {
+    const word = typeof raw === "string" ? raw : String(raw);
+    return { word, entryId: word ? componentEntryId(word) : null };
+  });
+}
+
 export function getEntry(id: number): Record<string, unknown> | null {
   const row = entryStmt.get(id);
   if (!row) return null;
   const entry = JSON.parse(row.data) as Record<string, unknown>;
   const frequency = row.freq > 0 ? { frequency: { count: row.freq, rank: row.freq_rank } } : {};
-  return { id, ...entry, ...frequency };
+  const components = resolveComponents(entry.components);
+  return { id, ...entry, ...(components ? { components } : {}), ...frequency };
 }
 
 // Computed once: how many entries have a frequency (0 for a database built without a list)

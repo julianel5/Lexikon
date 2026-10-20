@@ -11,8 +11,8 @@ import { FreqPill, PILL, PosPill } from './Pills'
 interface EntryViewProps {
   id: number
   onSelectTerm: (term: string) => void
-  /** Open the entry for a bare word (compound parts); falls back to onSelectTerm. */
-  onOpenWord?: (term: string) => void
+  /** Open the entry of a compound part (the app navigates by id). */
+  onOpenEntry?: (id: number) => void
   /** Called once the entry has been fetched (used to sync the URL). */
   onLoaded?: (entry: Entry) => void
   /** Called when the id no longer exists (404). */
@@ -79,13 +79,13 @@ function Section({
 export function EntryDetails({
   entry,
   onSelectTerm,
-  onOpenWord,
+  onOpenEntry,
 }: {
   entry: Entry
   onSelectTerm: (term: string) => void
-  onOpenWord?: (term: string) => void
+  /** Open the entry of a compound part; without it the part performs a search instead. */
+  onOpenEntry?: (id: number) => void
 }) {
-  const openWord = onOpenWord ?? onSelectTerm
   const fields = morphFields(entry)
   const ipas = ipasOf(entry)
   const senses = entry.senses ?? []
@@ -124,7 +124,7 @@ export function EntryDetails({
   const germanVoices = voices.filter((v) =>
     v.lang.replace('_', '-').toLowerCase().startsWith('de'),
   )
-  const clips = (entry.audio ?? []).filter((c) => c.mp3 || c.ogg)
+  const clips = (entry.audio ?? []).filter((c) => c.mp3 || c.ogg || c.wav)
   const canSpeak = germanVoices.length > 0
   // A recording always works; TTS only if a German voice is installed.
   // Never speak with a non-German voice: it mispronounces (Mädchen -> "machen").
@@ -166,7 +166,7 @@ export function EntryDetails({
 
     // Prefer a real recording; fall back to a German TTS voice if one exists.
     const clip = clips[0]
-    const src = clip?.mp3 ?? clip?.ogg
+    const src = clip?.mp3 ?? clip?.ogg ?? clip?.wav
     if (!src) {
       speak()
       return
@@ -253,16 +253,33 @@ export function EntryDetails({
               Word breakdown
             </span>
             <div className="flex flex-wrap gap-2">
-              {components.map((c, i) => (
-                <button
-                  key={`${c}-${i}`}
-                  type="button"
-                  onClick={() => openWord(c)}
-                  className="group inline-flex items-center rounded-xl border border-slate-700 bg-slate-800/50 px-2.5 py-1 text-sm font-medium text-slate-100 backdrop-blur transition-all hover:border-violet-500/60 hover:bg-slate-700/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
-                >
-                  {c}
-                </button>
-              ))}
+              {components.map((c, i) => {
+                const { word, entryId } = c
+                // A part that is not an entry of its own (a stem or an affix such as "besonder"
+                // or "-s" in besonders) is shown but is not a link to a page that does not exist.
+                if (entryId === null) {
+                  return (
+                    <span
+                      key={`${word}-${i}`}
+                      className="inline-flex items-center rounded-xl border border-slate-800 px-2.5 py-1 text-sm font-medium text-slate-500"
+                    >
+                      {word}
+                    </span>
+                  )
+                }
+                return (
+                  <button
+                    key={`${word}-${i}`}
+                    type="button"
+                    onClick={() =>
+                      onOpenEntry ? onOpenEntry(entryId) : onSelectTerm(word)
+                    }
+                    className="group inline-flex items-center rounded-xl border border-slate-700 bg-slate-800/50 px-2.5 py-1 text-sm font-medium text-slate-100 backdrop-blur transition-all hover:border-violet-500/60 hover:bg-slate-700/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500"
+                  >
+                    {word}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -374,7 +391,7 @@ export function EntryPreview({
 export function EntryView({
   id,
   onSelectTerm,
-  onOpenWord,
+  onOpenEntry,
   onLoaded,
   onMissing,
 }: EntryViewProps) {
@@ -406,7 +423,7 @@ export function EntryView({
         <EntryDetails
           entry={entry}
           onSelectTerm={onSelectTerm}
-          onOpenWord={onOpenWord}
+          onOpenEntry={onOpenEntry}
         />
       )}
     </section>
