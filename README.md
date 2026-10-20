@@ -154,6 +154,10 @@ python ingest/extract_audio.py --speaker AnotherSpeaker -o data/audio_commons.db
   --merge-into data/dictionary.db
 ```
 
+To make new recordings show up on the live site, the database also has to be uploaded and Cloudflare
+purged; the exact steps are in
+[CONTRIBUTING.md](CONTRIBUTING.md#adding-new-audio).
+
 ### 2. Run the API
 
 ```bash

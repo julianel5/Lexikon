@@ -126,6 +126,46 @@ data/                build output (git-ignored): raw dump and dictionary.db
 CHANGELOG.md         what changed in each release
 ```
 
+## Updating the production database
+
+The site serves one SQLite file from a Railway volume; a change to the ingest or to the data only
+reaches <https://lexikon.moe> after that file is rebuilt (or patched) and uploaded. This is a
+maintainer task: it touches production, so do it with the owner.
+
+### Adding new audio
+
+Recordings live on Wikimedia Commons, so a new batch only needs two commands and a deploy; the dump
+is never re-read and frequencies, search keys and IPA are left untouched.
+
+The recordings must follow the Lingua Libre name,
+`LL-Q188 (deu)-<speaker>-<word>.wav`, where `<speaker>` is the exact Wikimedia user name (this is
+the `--speaker` value below).
+
+```bash
+# 1. Refresh the map from the Commons API. The same -o file accumulates speakers, so this
+#    keeps the recordings already collected and adds the new ones (never removes any).
+python ingest/extract_audio.py --speaker <speaker> -o data/audio_commons.db \
+  --merge-into data/dictionary.db
+
+# 2. Check the new clips before deploying (stop the API first: it holds the file open).
+#    It prints how many entries carry a Commons recording; it should have grown.
+python ingest/extract_audio.py --speaker <speaker> -o data/audio_commons.db  # prints "recordings"
+
+# 3. Ship the patched database.
+gzip -k -f data/dictionary.db
+bash deploy/deploy-db.sh
+
+# 4. Purge Cloudflare's cache (dashboard: lexikon.moe > Caching > Configuration >
+#    Purge Everything), or visitors keep seeing answers cached from the old database
+#    for up to two hours.
+```
+
+`deploy-db.sh` backs up the live database, uploads the compressed file, checks its integrity on the
+server, swaps it in, restarts the API and verifies the data is served. `--merge-into` writes only
+the `data` JSON of the entries that gain a clip; if instead the whole dump is being refreshed, build
+from scratch with `--freq --ipa-db --audio-db` (see the [README](README.md#quick-start)) and then
+run steps 3 and 4.
+
 ## Commits
 
 Commits follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
