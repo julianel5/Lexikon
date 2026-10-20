@@ -15,8 +15,15 @@ Only the Commons URL is written, never the audio itself, and the licence stays o
 Commons (Lingua Libre recordings are CC BY-SA 4.0 by default); the site links back
 to the file page for credit.
 
+A build already carries the recordings that existed when it was made. To add the
+recordings of a new speaker to a finished ``dictionary.db`` without rebuilding it
+(and therefore without recomputing frequencies, keys or IPA), pass ``--merge-into``:
+only the ``data`` JSON of the entries that gain a clip is rewritten.
+
 Usage:
     python extract_audio.py --speaker NotoriousMonster -o data/audio_commons.db
+    python extract_audio.py --speaker SomeoneElse -o data/audio_commons.db \\
+        --merge-into data/dictionary.db
 """
 
 from __future__ import annotations
@@ -170,6 +177,69 @@ def extract(
     return stats
 
 
+def _load_map(path: Path) -> dict[str, dict[str, str]]:
+    """Return ``word -> {format: url}`` from an audio map written by ``extract``."""
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute("SELECT word, format, url FROM audio ORDER BY word, format")
+        mapping: dict[str, dict[str, str]] = {}
+        for word, fmt, url in rows:
+            if not isinstance(url, str) or not url.startswith(RECORD_AUDIO_PREFIX):
+                continue
+            if not isinstance(fmt, str) or not fmt:
+                continue
+            mapping.setdefault(word, {})[fmt] = url
+    finally:
+        conn.close()
+    return mapping
+
+
+def merge_into_dictionary(dict_path: Path, mapping: dict[str, dict[str, str]]) -> int:
+    """Give a recording to finished entries that have none, returning how many.
+
+    ``mapping`` is ``word -> {format: url}``, the shape ``load_audio_map`` and
+    ``_load_map`` return. Only the ``data`` JSON column is written: ``freq``,
+    ``freq_rank``, ``search_keys`` and ``autocomplete`` are left alone, so a database
+    can take new recordings without being rebuilt. Entries that already have a clip keep
+    it. The database is opened read-write (unlike the read-only server).
+    """
+    if not mapping:
+        return 0
+    conn = sqlite3.connect(dict_path)
+    try:
+        conn.execute("PRAGMA journal_mode=OFF")
+        conn.execute("PRAGMA synchronous=OFF")
+        by_word: dict[str, list[tuple[int, str]]] = {}
+        rows = conn.execute("SELECT id, word, data FROM entries")
+        for entry_id, word, data in rows:
+            if word in mapping:
+                by_word.setdefault(word, []).append((entry_id, data))
+        updated = 0
+        for word, entries in by_word.items():
+            clip = mapping[word]
+            for entry_id, data in entries:
+                try:
+                    record = json.loads(data)
+                except (TypeError, ValueError):
+                    continue
+                if record.get("audio"):
+                    continue
+                record["audio"] = [dict(clip)]
+                conn.execute(
+                    "UPDATE entries SET data = ? WHERE id = ?",
+                    (
+                        json.dumps(record, ensure_ascii=False, separators=(",", ":")),
+                        entry_id,
+                    ),
+                )
+                updated += 1
+        conn.commit()
+    finally:
+        conn.execute("PRAGMA journal_mode=DELETE")
+        conn.close()
+    return updated
+
+
 def main(argv: list[str] | None = None) -> None:
     for stream in (sys.stdout, sys.stderr):
         try:
@@ -195,7 +265,18 @@ def main(argv: list[str] | None = None) -> None:
         default=Path("data/audio_commons.db"),
         help="output SQLite path (default: data/audio_commons.db)",
     )
+    parser.add_argument(
+        "--merge-into",
+        type=Path,
+        default=None,
+        metavar="DICTIONARY_DB",
+        help="patch a finished dictionary.db (built without or before this map): "
+        "give a recording to its entries that have none, without rebuilding it",
+    )
     args = parser.parse_args(argv)
+
+    if args.merge_into is not None and not args.merge_into.is_file():
+        parser.error(f"dictionary not found: {args.merge_into}")
 
     print(f"Reading  Wikimedia Commons for {', '.join(args.speaker)}")
     print(f"Writing  {args.output}")
@@ -203,12 +284,27 @@ def main(argv: list[str] | None = None) -> None:
         stats = extract(args.speaker, args.output)
     except (urllib.error.URLError, ValueError, OSError) as error:
         parser.error(str(error))
+
+    merged = None
+    if args.merge_into is not None:
+        print(f"Merging  {args.output} -> {args.merge_into}")
+        try:
+            mapping = _load_map(args.output)
+            merged = merge_into_dictionary(args.merge_into, mapping)
+        except (ValueError, OSError, sqlite3.Error) as error:
+            parser.error(str(error))
+
     print(
         f"\nDone\n"
         f"  speakers  : {stats['speakers']:,}\n"
         f"  files     : {stats['files']:,}\n"
         f"  recordings: {stats['rows']:,}\n"
         f"  output    : {args.output}"
+        + (
+            f"\n  merged    : {merged:,} entries given a recording in {args.merge_into}"
+            if merged is not None
+            else ""
+        )
     )
 
 

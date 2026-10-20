@@ -231,5 +231,76 @@ class IngestFillTests(unittest.TestCase):
             self.assertEqual(_audio_of(out, "Haus", "noun"), [])
 
 
+class MergeIntoDictionaryTests(unittest.TestCase):
+    def _build(self, tmp: Path, freq: dict[str, int] | None = None) -> Path:
+        en_rows = [
+            {
+                "word": "Haus",
+                "pos": "noun",
+                "lang_code": "de",
+                "senses": [{"glosses": ["house"]}],
+            },
+            {
+                "word": "Auto",
+                "pos": "noun",
+                "lang_code": "de",
+                "senses": [{"glosses": ["car"]}],
+                "sounds": [
+                    {
+                        "ogg_url": "https://upload.wikimedia.org/wikipedia/commons/a/Auto.ogg",
+                    }
+                ],
+            },
+        ]
+        dump = tmp / "en.jsonl"
+        out = tmp / "dictionary.db"
+        _write_jsonl(dump, en_rows)
+        ingest.run(dump, out, 100, frequencies=freq)
+        return out
+
+    def test_fills_only_entries_without_audio(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self._build(Path(tmp))
+            mapping = {
+                "Haus": {"wav": "https://upload.wikimedia.org/wikipedia/commons/x/Haus.wav"},
+                "Auto": {"wav": "https://upload.wikimedia.org/wikipedia/commons/x/Auto.wav"},
+            }
+            updated = extract_audio.merge_into_dictionary(out, mapping)
+
+            self.assertEqual(updated, 1)
+            self.assertEqual(
+                _audio_of(out, "Haus", "noun"),
+                [{"wav": "https://upload.wikimedia.org/wikipedia/commons/x/Haus.wav"}],
+            )
+            self.assertEqual(
+                _audio_of(out, "Auto", "noun"),
+                [{"ogg": "https://upload.wikimedia.org/wikipedia/commons/a/Auto.ogg"}],
+            )
+
+    def test_does_not_touch_frequencies_or_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = self._build(Path(tmp), freq={"Haus": 1000})
+
+            def snapshot() -> list[tuple]:
+                conn = sqlite3.connect(out)
+                try:
+                    entries = conn.execute(
+                        "SELECT id, word, freq, freq_rank FROM entries ORDER BY id"
+                    ).fetchall()
+                    keys = conn.execute(
+                        "SELECT key, kind, entry_id FROM search_keys ORDER BY kind, key"
+                    ).fetchall()
+                finally:
+                    conn.close()
+                return entries, keys
+
+            before = snapshot()
+            extract_audio.merge_into_dictionary(
+                out,
+                {"Haus": {"wav": "https://upload.wikimedia.org/wikipedia/commons/x/Haus.wav"}},
+            )
+            self.assertEqual(snapshot(), before)
+
+
 if __name__ == "__main__":
     unittest.main()

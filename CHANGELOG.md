@@ -37,7 +37,10 @@ behaviour).
 - Optional Commons audio: `ingest/extract_audio.py` collects the Lingua Libre recordings (CC BY-SA
   4.0, Wikimedia Commons) of one or more speakers, and `ingest.py --audio-db` gives a recording to
   entries the dump left without one, never overriding an existing clip. The player now also plays
-  the `.wav` clips these uploads are, which Commons stores without an MP3/Ogg transcode.
+  the `.wav` clips these uploads are, which Commons stores without an MP3/Ogg transcode. New
+  recordings can be added to a finished database with `extract_audio.py --merge-into`, which patches
+  only the audio of entries that have none, without rebuilding the database (frequencies, keys and
+  IPA are left untouched).
 
 ### Fixed
 
