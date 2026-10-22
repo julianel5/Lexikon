@@ -384,7 +384,19 @@ const HEADWORD_SQL = `
   LIMIT 1
 `;
 
+// The free word a prefix comes from ("zusammen-" -> "zusammen"). The spelling has to match exactly,
+// capitals included, so "miss-" does not land on the noun "Miss". Ties on frequency go to the entry
+// listed first (the adverb before the adjective of "zusammen").
+const PREFIX_WORD_SQL = `
+  SELECT e.id AS id
+  FROM entries e
+  WHERE e.word = @word AND e.pos IN ('noun', 'verb', 'adj', 'adv')
+  ORDER BY ${E_FREQ} DESC, e.id
+  LIMIT 1
+`;
+
 const wordCandidatesStmt = db.prepare<[Record<string, unknown>], RawCandidate>(WORD_CANDIDATES_SQL);
+const prefixWordStmt = db.prepare<[Record<string, unknown>], { id: number }>(PREFIX_WORD_SQL);
 const headwordStmt = db.prepare<[Record<string, unknown>], RawCandidate>(HEADWORD_SQL);
 
 export const textLookup: Lookup = {
@@ -432,11 +444,14 @@ export function suggest(query: string, limit = 25): SuggestOutcome {
 /**
  * A component that is a headword of its own ("Wasser" in Wasserflasche), or null when it is only
  * a stem or an affix ("besonder", "-s" in besonders). Resolved like a compound part in parse.ts:
- * the word has to be an entry's headword, not one of its inflected forms.
+ * the word has to be an entry's headword, not one of its inflected forms. A prefix ("zusammen-" in
+ * zusammenziehen) has no such headword, so it opens the word it comes from ("zusammen").
  */
 function componentEntryId(word: string): number | null {
   const row = headwordStmt.get({ key: exactKey(word) });
-  return row ? row.id : null;
+  if (row) return row.id;
+  const base = word.match(/^([^-]{3,})-$/)?.[1];
+  return base ? (prefixWordStmt.get({ word: base.normalize("NFC") })?.id ?? null) : null;
 }
 
 /** Turn the stored component words (strings) into words plus the entry each one names. */
