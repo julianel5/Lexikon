@@ -111,13 +111,34 @@ export default function App() {
     if (slug) resolveBySlug(slug)
   }, [resolveBySlug])
 
-  // The magnifier in the header: back to the search page (keeping the query) and focus the box.
-  const goToSearch = () => {
+  // The magnifier in the header and '/' global shortcut: back to the search page and focus the box.
+  const goToSearch = useCallback(() => {
     if (selectedId !== null) showSearch(search.query)
     window.requestAnimationFrame(() =>
       document.getElementById('search-input')?.focus(),
     )
-  }
+  }, [selectedId, search.query, showSearch])
+
+  // Pressing '/' focuses the search box from any page when not typing in an input.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.isContentEditable ||
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT')
+      ) {
+        return
+      }
+      e.preventDefault()
+      goToSearch()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [goToSearch])
 
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-hidden bg-canvas-from font-sans text-slate-100 antialiased selection:bg-violet-500/30 selection:text-violet-200">
