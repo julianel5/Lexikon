@@ -19,6 +19,8 @@ behaviour).
 
 ### Added
 
+- Press `/` anywhere on the page to focus the search box (and to go back to the search from an entry),
+  as in most documentation sites. Thanks to Tanmay ([@TanmayNileshShinde](https://github.com/TanmayNileshShinde)) (#60).
 - A web app manifest and install icons: Lexikon can be installed on a phone or a computer ("Add to
   home screen" / "Install app"). Thanks to Prashant ([@Prashaxt](https://github.com/Prashaxt)), our
   first outside contribution (#63).
