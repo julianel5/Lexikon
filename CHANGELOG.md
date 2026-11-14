@@ -19,6 +19,8 @@ behaviour).
 
 ### Added
 
+- A single word the dictionary does not have, but that splits into words it has, shows its breakdown
+  instead of "No results found": *Mordprozess* gives Mord + Prozess, with the card of each part.
 - Press `/` anywhere on the page to focus the search box (and to go back to the search from an entry),
   as in most documentation sites. Thanks to Tanmay ([@TanmayNileshShinde](https://github.com/TanmayNileshShinde)) (#60).
 - A web app manifest and install icons: Lexikon can be installed on a phone or a computer ("Add to

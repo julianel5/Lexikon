@@ -39,17 +39,24 @@ export function Search({
   // A query of several words that reads as German text (most words resolve to entries) and is
   // not itself a phrase of the dictionary is shown cut into words, with the card of each word.
   // Anything else (a German phrase, an English search like "hot water") stays a normal search.
-  const sentence = useSentence(debouncedQuery.trim())
+  // A single word with no entry of its own ("Mordprozess") is analysed too: when it splits into
+  // known words, its breakdown (Mord + Prozess) is shown instead of "No results found".
+  const noResults = status === 'ready' && !loading && results.length === 0
+  const sentence = useSentence(debouncedQuery.trim(), noResults)
   const germanPhrase = results.some((r) => r.kind <= 2)
   const resolved = sentence
     ? sentence.tokens.filter((t) => t.word && (t.candidates?.length || t.compound)).length
     : 0
+  const compoundWord =
+    noResults &&
+    sentence !== null &&
+    sentence.stats.words === 1 &&
+    sentence.tokens.some((t) => t.word && t.compound)
   const sentenceMode =
     sentence !== null &&
     !loading &&
-    !germanPhrase &&
-    sentence.stats.words >= 2 &&
-    resolved / sentence.stats.words >= 0.6
+    ((!germanPhrase && sentence.stats.words >= 2 && resolved / sentence.stats.words >= 0.6) ||
+      compoundWord)
   const [selectedIndex, setSelectedIndex] = useState(-1)
 
   // --- autocomplete ----------------------------------------------------- //
