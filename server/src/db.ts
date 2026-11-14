@@ -395,7 +395,32 @@ const PREFIX_WORD_SQL = `
   LIMIT 1
 `;
 
+// A part of a word breakdown spelled exactly like an entry, capitals included: "bis" in bisher
+// is the preposition, not the noun Bis (B-sharp), and "Recht" in Strafrecht the noun, not the
+// adjective recht. Any part of speech counts except affixes and single characters; a proper
+// name only when nothing else has that spelling.
+const EXACT_WORD_SQL = `
+  SELECT e.id AS id
+  FROM entries e
+  WHERE e.word = @word
+    AND e.pos NOT IN ('prefix', 'suffix', 'interfix', 'circumfix', 'infix', 'character', 'symbol', 'punct')
+  ORDER BY e.pos = 'name', ${E_FREQ} DESC, e.id
+  LIMIT 1
+`;
+
+// The suffix entry for the last part of a derived word, which the data often stores without its
+// hyphen: "er" in Taiwaner is the suffix -er, not the pronoun er.
+const SUFFIX_SQL = `
+  SELECT e.id AS id
+  FROM entries e
+  WHERE e.word = @word AND e.pos = 'suffix'
+  ORDER BY ${E_FREQ} DESC, e.id
+  LIMIT 1
+`;
+
 const wordCandidatesStmt = db.prepare<[Record<string, unknown>], RawCandidate>(WORD_CANDIDATES_SQL);
+const exactWordStmt = db.prepare<[Record<string, unknown>], { id: number }>(EXACT_WORD_SQL);
+const suffixStmt = db.prepare<[Record<string, unknown>], { id: number }>(SUFFIX_SQL);
 const prefixWordStmt = db.prepare<[Record<string, unknown>], { id: number }>(PREFIX_WORD_SQL);
 const headwordStmt = db.prepare<[Record<string, unknown>], RawCandidate>(HEADWORD_SQL);
 
@@ -442,24 +467,32 @@ export function suggest(query: string, limit = 25): SuggestOutcome {
 }
 
 /**
- * A component that is a headword of its own ("Wasser" in Wasserflasche), or null when it is only
- * a stem or an affix ("besonder", "-s" in besonders). Resolved like a compound part in parse.ts:
- * the word has to be an entry's headword, not one of its inflected forms. A prefix ("zusammen-" in
- * zusammenziehen) has no such headword, so it opens the word it comes from ("zusammen").
+ * The entry a part of a word breakdown opens, or null when it is only a stem ("besonder" in
+ * besonders). In order: the suffix entry for a lower-case last part ("er" in Taiwaner -> -er), an
+ * entry spelled exactly like the part ("bis" in bisher -> the preposition), a headword matched
+ * without capitals (like a compound part in parse.ts), and for a prefix ("zusammen-" in
+ * zusammenziehen) the word it comes from ("zusammen").
  */
-function componentEntryId(word: string): number | null {
-  const row = headwordStmt.get({ key: exactKey(word) });
+function componentEntryId(word: string, last: boolean): number | null {
+  const w = word.normalize("NFC");
+  if (last && (w.startsWith("-") || /^\p{Ll}/u.test(w))) {
+    const suffix = suffixStmt.get({ word: w.startsWith("-") ? w : `-${w}` });
+    if (suffix) return suffix.id;
+  }
+  const exact = exactWordStmt.get({ word: w });
+  if (exact) return exact.id;
+  const row = headwordStmt.get({ key: exactKey(w) });
   if (row) return row.id;
-  const base = word.match(/^([^-]{3,})-$/)?.[1];
-  return base ? (prefixWordStmt.get({ word: base.normalize("NFC") })?.id ?? null) : null;
+  const base = w.match(/^([^-]{3,})-$/)?.[1];
+  return base ? (prefixWordStmt.get({ word: base })?.id ?? null) : null;
 }
 
 /** Turn the stored component words (strings) into words plus the entry each one names. */
 function resolveComponents(value: unknown): { word: string; entryId: number | null }[] | null {
   if (!Array.isArray(value)) return null;
-  return value.map((raw) => {
+  return value.map((raw, i) => {
     const word = typeof raw === "string" ? raw : String(raw);
-    return { word, entryId: word ? componentEntryId(word) : null };
+    return { word, entryId: word ? componentEntryId(word, i === value.length - 1) : null };
   });
 }
 
