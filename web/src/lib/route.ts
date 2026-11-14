@@ -9,6 +9,8 @@
  *                          regenerated) the app re-resolves it by word.
  */
 
+import { stripInvisible } from './text'
+
 export interface Route {
   entryId: number | null
   slug: string | null
@@ -26,7 +28,7 @@ function safeDecode(value: string): string {
 export function parseLocation(
   loc: Pick<Location, 'pathname' | 'search'>,
 ): Route {
-  const q = new URLSearchParams(loc.search).get('q') ?? ''
+  const q = stripInvisible(new URLSearchParams(loc.search).get('q') ?? '')
   const match = /^\/entry\/(\d+)(?:\/([^/]+))?\/?$/.exec(loc.pathname)
   if (!match) return { entryId: null, slug: null, q }
   return {

@@ -17,6 +17,7 @@ import { logger } from "hono/logger";
 import { autocomplete, entryCount, getEntry, sitemapPage, stats, suggest, textLookup } from "./db.js";
 import { analyzeText, MAX_TEXT_LENGTH } from "./parse.js";
 import { foldQuery } from "./fold.js";
+import { stripInvisible } from "./text.js";
 import { SITEMAP_PAGE_SIZE, buildSitemapIndex, buildSitemapPage, sitemapPageCount } from "./sitemap.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -66,7 +67,7 @@ app.get("/api/health", (c) => {
 });
 
 app.get("/api/suggest", (c) => {
-  const q = (c.req.query("q") ?? "").trim();
+  const q = stripInvisible(c.req.query("q") ?? "").trim();
   if (!q) {
     return c.json({ error: "missing query parameter 'q'" }, 400);
   }
@@ -86,7 +87,7 @@ app.get("/api/suggest", (c) => {
 });
 
 app.get("/api/autocomplete", (c) => {
-  const q = (c.req.query("q") ?? "").trim();
+  const q = stripInvisible(c.req.query("q") ?? "").trim();
   if (!q) {
     return c.json({ query: q, suggestions: [] });
   }
@@ -110,7 +111,7 @@ app.post("/api/parse", async (c) => {
   if (text.length > MAX_TEXT_LENGTH) {
     return c.json({ error: "text too long", maxLength: MAX_TEXT_LENGTH }, 413);
   }
-  return c.json(analyzeText(text, textLookup));
+  return c.json(analyzeText(stripInvisible(text), textLookup));
 });
 
 app.get("/api/entry/:id", (c) => {

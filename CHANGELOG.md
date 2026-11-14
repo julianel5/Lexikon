@@ -46,6 +46,9 @@ behaviour).
 
 ### Fixed
 
+- A word pasted from a dictionary such as Duden, which hides soft hyphens at every syllable break
+  (*Mord­pro­zess*), is searched as one word again instead of being cut into *Mord*, *pro* and *zess*.
+  Soft hyphens and zero-width characters are removed from the search box and by the API.
 - A prefix in a word breakdown opens the word it comes from: the *zusammen-* of *zusammenziehen*
   links to *zusammen* instead of being plain text.
 - The "Word breakdown" parts of a compound or derived word no longer open the wrong entry. Parts that

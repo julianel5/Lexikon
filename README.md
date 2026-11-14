@@ -293,6 +293,8 @@ curl "http://localhost:3000/api/autocomplete?q=ver&limit=3"
 ### `POST /api/parse`
 
 Analyzes a German text (JSON body `{ "text": "…" }`, at most 5,000 characters; `413` above that).
+Soft hyphens and zero-width characters (U+00AD, U+200B–U+200D, U+2060, U+FEFF) are removed first,
+here and in `/api/suggest` and `/api/autocomplete`, so a word pasted from Duden is still one word.
 The web app calls it when the search box holds a sentence: several words, most of which resolve to
 entries, and no dictionary phrase or English search matching the whole query.
 Returns every piece of the text in order, so it can be rebuilt exactly: words carry
