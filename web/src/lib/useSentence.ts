@@ -9,13 +9,16 @@ export function countWords(text: string): number {
 }
 
 /**
- * Segments a multi-word query into words and dictionary entries (POST /api/parse).
+ * Segments a multi-word query into words and dictionary entries (POST /api/parse). With
+ * `singleWord`, a one-word query is analysed too (a word the dictionary does not have, which may
+ * be a compound of words it has).
  * Only the analysis of the *current* query is returned, so a slow answer for an older query
  * never shows up under a newer one.
  */
-export function useSentence(query: string): TextAnalysis | null {
+export function useSentence(query: string, singleWord = false): TextAnalysis | null {
   const [done, setDone] = useState<{ query: string; analysis: TextAnalysis } | null>(null)
-  const eligible = countWords(query) >= 2 && query.length <= MAX_SENTENCE_LENGTH
+  const words = countWords(query)
+  const eligible = (words >= 2 || (singleWord && words === 1)) && query.length <= MAX_SENTENCE_LENGTH
 
   useEffect(() => {
     if (!eligible) return
