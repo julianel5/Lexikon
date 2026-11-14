@@ -48,6 +48,9 @@ behaviour).
 
 ### Fixed
 
+- Word breakdown parts open the right entry: *bis* in *bisher* is the preposition (not *Bis*, B-sharp), *Recht*
+  in *Strafrecht* the noun, *drei* in *Dreieck* the number, and a suffix stored without its hyphen opens
+  the suffix (*er* in *Taiwaner* → *-er*, *bar* in *zählbar* → *-bar*). Suffixes such as *-ung* or *-keit* now link too.
 - A word pasted from a dictionary such as Duden, which hides soft hyphens at every syllable break
   (*Mord­pro­zess*), is searched as one word again instead of being cut into *Mord*, *pro* and *zess*.
   Soft hyphens and zero-width characters are removed from the search box and by the API.
