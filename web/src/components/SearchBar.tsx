@@ -1,5 +1,6 @@
 import type { KeyboardEvent } from 'react'
 import type { AutocompleteItem } from '../lib/api'
+import { stripInvisible } from '../lib/text'
 
 interface SearchBarProps {
   value: string
@@ -69,7 +70,7 @@ export function SearchBar({
             open && activeIndex >= 0 ? `${LISTBOX_ID}-${activeIndex}` : undefined
           }
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(stripInvisible(e.target.value))}
           onKeyDown={onKeyDown}
           placeholder="Search a German word…"
           aria-label="Search a German word"
